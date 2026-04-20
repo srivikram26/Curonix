@@ -10,6 +10,20 @@ from datetime import timedelta
 load_dotenv()
 
 
+def _resolve_database_url(base_dir):
+    """Build SQLAlchemy database URL with safe Render/Postgres compatibility."""
+    database_url = os.environ.get('DATABASE_URL', '').strip()
+
+    # Render/Heroku style legacy URL; SQLAlchemy expects postgresql://
+    if database_url.startswith('postgres://'):
+        database_url = database_url.replace('postgres://', 'postgresql://', 1)
+
+    if not database_url:
+        return f"sqlite:///{os.path.join(base_dir, 'hospital_scheduler.db')}"
+
+    return database_url
+
+
 class Config:
     """Base configuration class."""
     
@@ -20,10 +34,7 @@ class Config:
     # Default: SQLite (works out of the box, no server required)
     # For MySQL: set DATABASE_URL=mysql+pymysql://user:pass@host/dbname in .env
     BASE_DIR = os.path.abspath(os.path.dirname(__file__))
-    SQLALCHEMY_DATABASE_URI = os.environ.get(
-        'DATABASE_URL',
-        f"sqlite:///{os.path.join(BASE_DIR, 'hospital_scheduler.db')}"
-    )
+    SQLALCHEMY_DATABASE_URI = _resolve_database_url(BASE_DIR)
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
     # JWT Settings

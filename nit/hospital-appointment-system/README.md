@@ -210,6 +210,58 @@ curl http://localhost:5000/api/doctors?department_id=1
 
 ---
 
+## Deploy on Render
+
+### Option A: Blueprint deploy (recommended)
+1. Push this project to GitHub (already done in your case).
+2. In Render, click **New +** -> **Blueprint**.
+3. Select your repository and deploy. Render will use `render.yaml` automatically.
+
+> This repository also includes a root-level `render.yaml` that points to `nit/hospital-appointment-system`, so Blueprint deploy works even when this app is in a subfolder.
+
+### Option B: Manual Web Service deploy
+If you prefer creating the service manually in Render, use:
+
+- **Environment**: Python
+- **Root Directory**: `nit/hospital-appointment-system`
+- **Build Command**: `pip install -r requirements.txt`
+- **Start Command**: `gunicorn run:app --bind 0.0.0.0:$PORT --workers 2 --threads 4 --timeout 120`
+
+### Required Environment Variables
+Set these in Render -> your service -> **Environment**:
+
+- `APP_ENV=production`
+- `SECRET_KEY=<strong-random-value>`
+- `JWT_SECRET_KEY=<strong-random-value>`
+- `DATABASE_URL=<your-db-connection-string>`
+- `DOCTOR_ALLOWED_EMAIL_DOMAINS=hospital.com`
+
+### Database Notes
+- The app supports SQLite by default for local development.
+- For production on Render, use an external persistent SQL database and set `DATABASE_URL`.
+- Postgres URLs in either `postgres://...` or `postgresql://...` format are supported.
+- Example MySQL URL format:
+
+```text
+mysql+pymysql://username:password@host:3306/hospital_scheduler
+```
+
+### After First Deploy
+1. Open your Render service URL.
+2. Verify health endpoint:
+
+```bash
+curl https://<your-render-service>.onrender.com/api/health
+```
+
+3. If database is empty, run seeding once using a Render Shell session:
+
+```bash
+python seed_data.py
+```
+
+---
+
 ## 📄 License
 
 This project is developed as a final-year capstone project for academic purposes.

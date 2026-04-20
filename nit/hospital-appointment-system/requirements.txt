@@ -4,6 +4,7 @@ Flask-SQLAlchemy>=3.1
 Flask-Login>=0.6
 Flask-WTF>=1.2
 Flask-CORS>=4.0
+gunicorn>=22.0
 
 # Database (pure Python MySQL driver — no C compiler needed)
 PyMySQL>=1.1
