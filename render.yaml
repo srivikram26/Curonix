@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: hospital-appointment-system
+    name: ai-hospital-scheduler-sri26-20260421
     env: python
     plan: free
     rootDir: nit/hospital-appointment-system
