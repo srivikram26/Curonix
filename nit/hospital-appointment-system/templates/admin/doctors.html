@@ -1,0 +1,343 @@
+{% extends "dashboard_base.html" %}
+{% block title %}Manage Doctors{% endblock %}
+{% block panel_subtitle %}Admin Panel{% endblock %}
+{% block page_title %}Doctor Management{% endblock %}
+
+{% block sidebar_nav %}
+<div class="nav-section">
+    <div class="nav-section-title">Management</div>
+    <a href="/admin/dashboard" class="nav-link"><span class="icon">📊</span> Dashboard</a>
+    <a href="/admin/doctors" class="nav-link active"><span class="icon">👨‍⚕️</span> Doctors</a>
+    <a href="/admin/departments" class="nav-link"><span class="icon">🏥</span> Departments</a>
+    <a href="/admin/appointments" class="nav-link"><span class="icon">📋</span> Appointments</a>
+    <a href="/admin/analytics" class="nav-link"><span class="icon">📈</span> AI Analytics</a>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.doctors-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+    min-width: 980px;
+}
+
+.doctors-table th,
+.doctors-table td {
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--gray-100);
+    vertical-align: middle;
+}
+
+.doctors-table thead th {
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--gray-500);
+    background: var(--gray-50);
+}
+
+.doctors-table tbody tr:hover {
+    background: var(--gray-50);
+}
+
+.doctors-table .col-name,
+.doctors-table .col-email,
+.doctors-table .col-department,
+.doctors-table .col-specialization,
+.doctors-table .col-serial,
+.doctors-table .name-cell,
+.doctors-table .email-cell,
+.doctors-table .department-cell,
+.doctors-table .specialization-cell,
+.doctors-table .serial-cell {
+    text-align: left;
+}
+
+.doctors-table .col-max,
+.doctors-table .col-status,
+.doctors-table .col-actions,
+.doctors-table .col-password,
+.doctors-table .max-cell,
+.doctors-table .status-cell,
+.doctors-table .actions-cell,
+.doctors-table .password-cell {
+    text-align: center;
+    vertical-align: middle;
+}
+
+.doctors-table .max-cell,
+.doctors-table .status-cell,
+.doctors-table .actions-cell,
+.doctors-table .password-cell {
+    white-space: nowrap;
+}
+
+.doctors-table thead .col-max,
+.doctors-table thead .col-status {
+    white-space: normal;
+    line-height: 1.2;
+}
+
+.doctors-table .name-cell,
+.doctors-table .email-cell,
+.doctors-table .department-cell,
+.doctors-table .specialization-cell {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.doctors-table .col-name { width: 15%; }
+.doctors-table .col-email { width: 18%; }
+.doctors-table .col-department { width: 13%; }
+.doctors-table .col-specialization { width: 14%; }
+.doctors-table .col-serial { width: 6%; }
+.doctors-table .col-max { width: 12%; }
+.doctors-table .col-status { width: 8%; }
+.doctors-table .col-actions { width: 10%; }
+.doctors-table .col-password { width: 10%; }
+
+.doctors-table .actions-stack {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+
+.doctors-table .password-wrap {
+    display: inline-flex;
+    justify-content: center;
+}
+
+.doctors-table .actions-stack .btn,
+.doctors-table .password-wrap .btn {
+    min-width: 88px;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="card mb-24">
+    <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
+        <h3>👨‍⚕️ All Doctors</h3>
+        <button class="btn btn-primary" onclick="Modal.open('addDoctorModal')">+ Add Doctor</button>
+    </div>
+    <div class="card-body">
+        <div class="table-container">
+            <table class="table doctors-table">
+                <thead>
+                    <tr><th class="col-serial">S.No</th><th class="col-name">Name</th><th class="col-email">Email</th><th class="col-department">Department</th><th class="col-specialization">Specialization</th><th class="col-max">Max Patients/Day</th><th class="col-status">Status</th><th class="col-actions">Actions</th><th class="col-password">Password</th></tr>
+                </thead>
+                <tbody id="doctorTableBody">
+                    <tr><td colspan="9" class="text-center">Loading...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Add Doctor Modal -->
+<div class="modal-overlay" id="addDoctorModal">
+    <div class="modal" style="max-width:600px;">
+        <div class="modal-header">
+            <h3 id="modalTitle">Add New Doctor</h3>
+            <button class="modal-close" onclick="Modal.close('addDoctorModal')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <form id="doctorForm" onsubmit="saveDoctor(event)">
+                <input type="hidden" id="editDoctorId">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+                    <div class="form-group">
+                        <label class="form-label">Full Name *</label>
+                        <input type="text" id="docName" class="form-input" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Email *</label>
+                        <input type="email" id="docEmail" class="form-input" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Phone</label>
+                        <input type="text" id="docPhone" class="form-input">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Department *</label>
+                        <select id="docDept" class="form-input" required>
+                            <option value="">Select Department</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Specialization</label>
+                        <input type="text" id="docSpec" class="form-input">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Max Patients/Day</label>
+                        <input type="number" id="docMax" class="form-input" value="20" min="1" max="100">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Consultation Duration (min)</label>
+                        <input type="number" id="docDuration" class="form-input" value="30" min="5" max="120">
+                    </div>
+                    <div class="form-group" id="passwordGroup">
+                        <label class="form-label">Password *</label>
+                        <input type="password" id="docPassword" class="form-input">
+                    </div>
+                </div>
+                <div style="margin-top:20px; text-align:right;">
+                    <button type="button" class="btn btn-outline" onclick="Modal.close('addDoctorModal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Doctor</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let isEditing = false;
+
+document.addEventListener('DOMContentLoaded', () => { loadDoctors(); loadDepartments(); });
+
+async function loadDepartments() {
+    try {
+        const res = await API.get('/api/departments');
+        const sel = document.getElementById('docDept');
+        (res.departments || []).forEach(d => {
+            sel.innerHTML += `<option value="${d.id}">${d.name}</option>`;
+        });
+    } catch(e) {}
+}
+
+async function loadDoctors() {
+    try {
+        const result = await API.get('/admin/api/doctors');
+        const doctors = result.success ? result.doctors : [];
+        const tbody = document.getElementById('doctorTableBody');
+        
+        if (!doctors.length) { tbody.innerHTML = '<tr><td colspan="9" class="text-center">No doctors found</td></tr>'; return; }
+        
+        tbody.innerHTML = doctors.map((d, index) => {
+            const isActive = d.is_active !== false;
+            const statusText = d.status_display || (isActive ? 'Active' : 'Deactivated');
+            return `
+            <tr>
+            <td class="serial-cell"><strong>${index + 1}</strong></td>
+                <td class="name-cell"><strong>${d.name}</strong></td>
+                <td class="email-cell">${d.email}</td>
+                <td class="department-cell">${d.department || '-'}</td>
+                <td class="specialization-cell">${d.specialization || '-'}</td>
+                <td class="max-cell">${d.max_patients_per_day || 20}</td>
+                <td class="status-cell"><span class="badge badge-${isActive ? 'success' : 'danger'}">${statusText}</span></td>
+                <td class="actions-cell">
+                    <div class="actions-stack">
+                        <button class="btn btn-sm btn-outline" onclick="editDoctor(${JSON.stringify(d).replace(/"/g, '&quot;')})">Edit</button>
+                        <button class="btn btn-sm btn-danger" onclick="toggleDoctor(${d.doctor_id || d.id}, ${isActive})">${isActive ? 'Deactivate' : 'Activate'}</button>
+                    </div>
+                </td>
+                <td class="password-cell">
+                    <div class="password-wrap">
+                        <button class="btn btn-sm btn-warning" onclick="resetDoctorPassword(${d.doctor_id || d.id})">Reset</button>
+                    </div>
+                </td>
+            </tr>
+        `}).join('');
+    } catch(e) { console.error(e); }
+}
+
+function editDoctor(d) {
+    isEditing = true;
+    document.getElementById('modalTitle').textContent = 'Edit Doctor';
+    document.getElementById('editDoctorId').value = d.doctor_id || d.id;
+    document.getElementById('docName').value = d.name || '';
+    document.getElementById('docEmail').value = d.email || '';
+    document.getElementById('docPhone').value = d.phone || '';
+    document.getElementById('docDept').value = d.department_id || '';
+    document.getElementById('docSpec').value = d.specialization || '';
+    document.getElementById('docMax').value = d.max_patients_per_day || 20;
+    document.getElementById('docDuration').value = d.consultation_duration || 30;
+    document.getElementById('passwordGroup').style.display = 'none';
+    Modal.open('addDoctorModal');
+}
+
+function resetForm() {
+    isEditing = false;
+    document.getElementById('doctorForm').reset();
+    document.getElementById('editDoctorId').value = '';
+    document.getElementById('modalTitle').textContent = 'Add New Doctor';
+    document.getElementById('passwordGroup').style.display = '';
+}
+
+async function saveDoctor(e) {
+    e.preventDefault();
+    const payload = {
+        name: document.getElementById('docName').value,
+        email: document.getElementById('docEmail').value,
+        phone: document.getElementById('docPhone').value,
+        department_id: parseInt(document.getElementById('docDept').value),
+        specialization: document.getElementById('docSpec').value,
+        max_patients_per_day: parseInt(document.getElementById('docMax').value),
+        consultation_duration: parseInt(document.getElementById('docDuration').value)
+    };
+    
+    try {
+        let result;
+        if (isEditing) {
+            const id = document.getElementById('editDoctorId').value;
+            result = await API.put('/admin/api/doctors/' + id, payload);
+        } else {
+            payload.password = document.getElementById('docPassword').value;
+            result = await API.post('/admin/api/doctors', payload);
+        }
+        if (result.success) { Toast.success('Doctor saved!'); Modal.close('addDoctorModal'); resetForm(); loadDoctors(); }
+    } catch(e) { Toast.error(e.message); }
+}
+
+async function toggleDoctor(id, currentlyActive) {
+    if (!confirm(`Are you sure you want to ${currentlyActive ? 'deactivate' : 'activate'} this doctor?`)) return;
+    try {
+        const result = await API.put('/admin/api/doctors/' + id, { is_active: !currentlyActive });
+        if (result.success) {
+            loadDoctors();
+            if (currentlyActive) {
+                const undo = async () => {
+                    try {
+                        const undoResult = await API.put('/admin/api/doctors/' + id, { is_active: true });
+                        if (undoResult.success) {
+                            Toast.success('Doctor reactivated!');
+                            loadDoctors();
+                        } else {
+                            throw new Error(undoResult.error || 'Unable to undo');
+                        }
+                    } catch (err) {
+                        Toast.error(err.message || 'Undo failed');
+                        throw err;
+                    }
+                };
+                Toast.action('Doctor deactivated', 'Undo', undo, 'info', 5000);
+            } else {
+                Toast.success('Doctor updated!');
+            }
+        }
+    } catch(e) { Toast.error(e.message); }
+}
+
+async function resetDoctorPassword(id) {
+    if (!confirm('Generate a temporary password for this doctor account?')) return;
+    try {
+        const result = await API.post(`/admin/api/doctors/${id}/reset-password`);
+        if (result.success) {
+            Toast.success(`Temporary password: ${result.temporary_password}`, 6000);
+        } else {
+            throw new Error(result.error || 'Unable to reset password');
+        }
+    } catch (e) {
+        Toast.error(e.message || 'Password reset failed');
+    }
+}
+
+// Reset form when modal opens for add
+document.querySelector('[onclick="Modal.open(\'addDoctorModal\')"]')?.addEventListener('click', resetForm);
+</script>
+{% endblock %}

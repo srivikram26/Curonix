@@ -1,0 +1,264 @@
+{% extends "dashboard_base.html" %}
+{% block title %}Patient History{% endblock %}
+{% block panel_subtitle %}Doctor Panel{% endblock %}
+{% block page_title %}Patient History{% endblock %}
+
+{% block extra_css %}
+<style>
+.patients-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+}
+
+.patients-table th,
+.patients-table td {
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--gray-100);
+    vertical-align: middle;
+}
+
+.patients-table thead th {
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--gray-500);
+    background: var(--gray-50);
+}
+
+.patients-table tbody tr:hover {
+    background: var(--gray-50);
+}
+
+.patients-table .col-name,
+.patients-table .col-email {
+    text-align: left;
+}
+
+.patients-table .col-phone,
+.patients-table .col-age,
+.patients-table .col-visits,
+.patients-table .col-actions {
+    text-align: center;
+    white-space: nowrap;
+}
+
+.patients-table .name-cell,
+.patients-table .email-cell {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.patients-table .actions-cell {
+    text-align: center;
+}
+
+.patients-table .actions-cell .btn {
+    min-width: 96px;
+}
+
+.patients-table .col-name { width: 24%; }
+.patients-table .col-email { width: 26%; }
+.patients-table .col-phone { width: 18%; }
+.patients-table .col-age { width: 8%; }
+.patients-table .col-visits { width: 10%; }
+.patients-table .col-actions { width: 14%; }
+
+.history-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+}
+
+.history-table th,
+.history-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--gray-100);
+    vertical-align: middle;
+}
+
+.history-table thead th {
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--gray-500);
+    background: var(--gray-50);
+}
+
+.history-table .h-date,
+.history-table .h-time,
+.history-table .h-type,
+.history-table .h-symptoms {
+    text-align: left;
+}
+
+.history-table .h-priority,
+.history-table .h-status {
+    text-align: center;
+    white-space: nowrap;
+}
+
+.history-table .h-priority .badge,
+.history-table .h-status .badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.history-table .col-date { width: 20%; }
+.history-table .col-time { width: 14%; }
+.history-table .col-type { width: 16%; }
+.history-table .col-priority { width: 16%; }
+.history-table .col-status { width: 16%; }
+.history-table .col-symptoms { width: 18%; }
+
+.history-table .h-symptoms {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+@media (max-width: 992px) {
+    .patients-table {
+        min-width: 760px;
+    }
+
+    .history-table {
+        min-width: 760px;
+    }
+}
+</style>
+{% endblock %}
+
+{% block sidebar_nav %}
+<div class="nav-section">
+    <div class="nav-section-title">Menu</div>
+    <a href="/doctor/dashboard" class="nav-link"><span class="icon">📊</span> Dashboard</a>
+    <a href="/doctor/schedule" class="nav-link"><span class="icon">📅</span> My Schedule</a>
+    <a href="/doctor/availability" class="nav-link"><span class="icon">⏰</span> Availability</a>
+    <a href="/doctor/patients" class="nav-link active"><span class="icon">👥</span> Patient History</a>
+</div>
+{% endblock %}
+
+{% block content %}
+<!-- Search -->
+<div class="card mb-24">
+    <div class="card-body">
+        <div style="display:flex; gap:12px;">
+            <input type="text" id="searchInput" class="form-input" placeholder="Search patient by name or email..." style="flex:1;">
+            <button class="btn btn-primary" onclick="searchPatients()">Search</button>
+        </div>
+    </div>
+</div>
+
+<!-- Results Table -->
+<div class="card mb-24">
+    <div class="card-header"><h3>👥 Patients</h3></div>
+    <div class="card-body">
+        <div class="table-container">
+        <table class="table patients-table">
+            <thead>
+                <tr><th>Name</th><th>Email</th><th>Phone</th><th>Age</th><th>Total Visits</th><th>Actions</th></tr>
+            </thead>
+            <tbody id="patientTableBody">
+                <tr><td colspan="6" class="text-center">Search or view all patients</td></tr>
+            </tbody>
+        </table>
+        </div>
+    </div>
+</div>
+
+<!-- Patient History Modal -->
+<div class="modal-overlay" id="historyModal">
+    <div class="modal" style="max-width:700px;">
+        <div class="modal-header">
+            <h3 id="historyTitle">Patient History</h3>
+            <button class="modal-close" onclick="Modal.close('historyModal')">&times;</button>
+        </div>
+        <div class="modal-body" id="historyContent">
+            <div class="loading"><span class="spinner"></span></div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', loadPatients);
+document.getElementById('searchInput').addEventListener('keyup', e => { if(e.key === 'Enter') searchPatients(); });
+
+async function loadPatients() {
+    try {
+        const result = await API.get('/doctor/api/patients');
+        renderPatients(result.success ? result.patients : []);
+    } catch(e) { renderPatients([]); }
+}
+
+function searchPatients() {
+    const q = document.getElementById('searchInput').value.toLowerCase();
+    document.querySelectorAll('#patientTableBody tr[data-name]').forEach(row => {
+        const name = row.getAttribute('data-name') || '';
+        const email = row.getAttribute('data-email') || '';
+        row.style.display = (name.includes(q) || email.includes(q)) ? '' : 'none';
+    });
+}
+
+function renderPatients(patients) {
+    const tbody = document.getElementById('patientTableBody');
+    if (!patients.length) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center">No patients found</td></tr>';
+        return;
+    }
+    tbody.innerHTML = patients.map(p => `
+            <tr data-name="${(p.name || '').toLowerCase()}" data-email="${(p.email || '').toLowerCase()}">
+            <td class="name-cell"><strong>${p.name || 'N/A'}</strong></td>
+            <td class="email-cell">${p.email || ''}</td>
+            <td class="phone-cell">${p.phone || '-'}</td>
+            <td class="age-cell">${p.age || '-'}</td>
+            <td class="visits-cell">${p.total_visits || 0}</td>
+            <td class="actions-cell"><button class="btn btn-sm btn-outline" onclick="viewHistory(${p.id}, '${(p.name || '').replace(/'/g, "\\'")}')">View History</button></td>
+        </tr>
+    `).join('');
+}
+
+async function viewHistory(patientId, name) {
+    document.getElementById('historyTitle').textContent = name + ' — Appointment History';
+    document.getElementById('historyContent').innerHTML = '<div class="loading"><span class="spinner"></span></div>';
+    Modal.open('historyModal');
+    
+    try {
+        const result = await API.get('/doctor/api/patient-history/' + patientId);
+        const appointments = result.success ? result.appointments : [];
+        
+        if (!appointments.length) {
+            document.getElementById('historyContent').innerHTML = '<p>No appointment history.</p>';
+            return;
+        }
+        
+        document.getElementById('historyContent').innerHTML = `
+        <div class="table-container">
+        <table class="table history-table">
+            <thead><tr><th class="col-date">Date</th><th class="col-time">Time</th><th class="col-type">Type</th><th class="col-priority">Priority</th><th class="col-status">Status</th><th class="col-symptoms">Symptoms</th></tr></thead>
+            <tbody>
+                ${appointments.map(a => {
+                    const appointmentType = (a.appointment_type || 'Regular').replace(/_/g, ' ');
+                    return `
+                <tr>
+                    <td class="h-date">${Utils.formatDate(a.date)}</td>
+                    <td class="h-time">${Utils.formatTime(a.start_time)}</td>
+                    <td class="h-type">${appointmentType}</td>
+                    <td class="h-priority"><span class="badge badge-${a.priority === 'Emergency' ? 'danger' : a.priority === 'High' ? 'warning' : 'info'}">${a.priority || 'Normal'}</span></td>
+                    <td class="h-status"><span class="badge badge-${a.status === 'Completed' ? 'success' : a.status === 'Cancelled' ? 'danger' : 'info'}">${a.status || '-'}</span></td>
+                    <td class="h-symptoms">${a.symptoms || '-'}</td>
+                </tr>`;
+                }).join('')}
+            </tbody>
+        </table>
+        </div>`;
+    } catch(e) {
+        document.getElementById('historyContent').innerHTML = '<p class="text-danger">Failed to load history</p>';
+    }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,476 @@
+{% extends "dashboard_base.html" %}
+{% block title %}Manage Availability{% endblock %}
+{% block panel_subtitle %}Doctor Panel{% endblock %}
+{% block page_title %}Manage Availability{% endblock %}
+
+{% block extra_css %}
+<style>
+#availSlots .avail-time {
+    border-radius: 9999px;
+    padding-left: 14px;
+    padding-right: 14px;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+    cursor: pointer;
+    background: #fff;
+    width: 150px;
+}
+
+#availSlots .avail-row {
+    display: grid;
+    grid-template-columns: 110px 120px 150px 26px 150px;
+    gap: 14px;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--gray-100);
+}
+
+#availSlots .avail-day {
+    font-weight: 500;
+}
+
+#availSlots .avail-check-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+#availSlots .avail-sep {
+    text-align: center;
+    color: var(--gray-600);
+}
+
+@media (max-width: 900px) {
+    #availSlots .avail-row {
+        grid-template-columns: 1fr 1fr;
+        gap: 10px 12px;
+    }
+
+    #availSlots .avail-day {
+        grid-column: 1 / -1;
+    }
+
+    #availSlots .avail-check-label {
+        grid-column: 1 / -1;
+    }
+
+    #availSlots .avail-sep {
+        display: none;
+    }
+
+    #availSlots .avail-time {
+        width: 100%;
+    }
+}
+
+.clock-picker {
+    position: fixed;
+    width: 280px;
+    height: 320px;
+    border-radius: 24px;
+    background: #fff;
+    border: 1px solid var(--gray-200);
+    box-shadow: var(--shadow-xl);
+    z-index: 7000;
+    padding: 12px;
+}
+
+.clock-picker.hidden {
+    display: none;
+}
+
+.clock-picker-title {
+    text-align: center;
+    font-weight: 600;
+    color: var(--gray-700);
+    margin: 4px 0 8px;
+}
+
+.clock-face {
+    position: relative;
+    width: 256px;
+    height: 256px;
+    margin: 0 auto;
+    border-radius: 50%;
+    border: 1px solid var(--gray-200);
+    background: radial-gradient(circle at center, var(--gray-50) 0%, #fff 65%);
+}
+
+.clock-center {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 96px;
+    height: 96px;
+    border-radius: 50%;
+    background: var(--primary-bg);
+    color: var(--primary-dark);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 1rem;
+    text-align: center;
+    line-height: 1.2;
+    white-space: pre-line;
+    border: 1px solid #bfdbfe;
+    pointer-events: none;
+}
+
+.clock-tick {
+    position: absolute;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    border: 1px solid var(--gray-300);
+    background: #fff;
+    color: var(--gray-700);
+    font-size: 0.8rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.clock-tick:hover {
+    border-color: var(--primary);
+    color: var(--primary-dark);
+    background: var(--primary-bg);
+}
+
+.clock-tick.active {
+    background: var(--primary);
+    border-color: var(--primary-dark);
+    color: #fff;
+}
+
+.clock-meridiem {
+    margin-top: 10px;
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+}
+
+.clock-meridiem-btn {
+    border: 1px solid var(--gray-300);
+    background: #fff;
+    color: var(--gray-700);
+    border-radius: 9999px;
+    padding: 6px 16px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.clock-meridiem-btn.active {
+    background: var(--primary);
+    color: #fff;
+    border-color: var(--primary-dark);
+}
+</style>
+{% endblock %}
+
+{% block sidebar_nav %}
+<div class="nav-section">
+    <div class="nav-section-title">Menu</div>
+    <a href="/doctor/dashboard" class="nav-link"><span class="icon">📊</span> Dashboard</a>
+    <a href="/doctor/schedule" class="nav-link"><span class="icon">📅</span> My Schedule</a>
+    <a href="/doctor/availability" class="nav-link active"><span class="icon">⏰</span> Availability</a>
+    <a href="/doctor/patients" class="nav-link"><span class="icon">👥</span> Patient History</a>
+</div>
+{% endblock %}
+
+{% block content %}
+<!-- Weekly Availability -->
+<div class="card mb-24">
+    <div class="card-header"><h3>⏰ Weekly Availability</h3></div>
+    <div class="card-body">
+        <form id="availForm" onsubmit="saveAvailability(event)">
+            <div id="availSlots"></div>
+            <button type="submit" class="btn btn-primary mt-24">Save Availability</button>
+        </form>
+    </div>
+</div>
+
+<!-- Request Leave -->
+<div class="card" style="max-width:500px;">
+    <div class="card-header"><h3>🏖️ Request Leave</h3></div>
+    <div class="card-body">
+        <div class="form-group">
+            <label class="form-label">Leave Date</label>
+            <input type="date" id="leaveDate" class="form-input">
+        </div>
+        <div class="form-group">
+            <label class="form-label">Reason</label>
+            <input type="text" id="leaveReason" class="form-input" placeholder="Reason for leave">
+        </div>
+        <button class="btn btn-warning" onclick="requestLeave()">Mark Leave</button>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+const CLOCK_MINUTES = Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, '0'));
+let activeTimeInput = null;
+let clockStage = 'hour';
+let selectedHour = '09';
+let selectedMinute = '00';
+let selectedMeridiem = 'AM';
+
+document.addEventListener('DOMContentLoaded', loadAvailability);
+document.addEventListener('click', handleOutsideClockClick);
+window.addEventListener('resize', hideClockPicker);
+
+async function loadAvailability() {
+    try {
+        const result = await API.get('/doctor/api/availability');
+        renderAvailForm(result.success ? result.availability : []);
+    } catch(e) { renderAvailForm([]); }
+}
+
+function renderAvailForm(existing) {
+    const container = document.getElementById('availSlots');
+    const existingMap = {};
+    existing.forEach(a => { existingMap[a.day_of_week] = a; });
+    
+    container.innerHTML = DAYS.map((day, i) => {
+        const slot = existingMap[i] || { start_time: '09:00', end_time: '17:00', is_available: i < 5 };
+        return `
+        <div class="avail-row">
+            <label class="avail-day">${day}</label>
+            <label class="avail-check-label">
+                <input type="checkbox" class="avail-check" data-day="${i}" ${slot.is_available ? 'checked' : ''}>
+                Available
+            </label>
+            <input type="text" class="form-input avail-time avail-start" data-day="${i}" value="${to12HourDisplay(normalizeTime24(slot.start_time || '09:00'))}" readonly onclick="openClockPicker(this, event)">
+            <span class="avail-sep">to</span>
+            <input type="text" class="form-input avail-time avail-end" data-day="${i}" value="${to12HourDisplay(normalizeTime24(slot.end_time || '17:00'))}" readonly onclick="openClockPicker(this, event)">
+        </div>`;
+    }).join('');
+}
+
+function normalizeTime24(value) {
+    const raw = String(value || '').trim();
+    const match = raw.match(/^(\d{1,2}):(\d{2})/);
+    if (!match) return '09:00';
+    const hour = String(Math.max(0, Math.min(23, parseInt(match[1], 10) || 0))).padStart(2, '0');
+    const minute = String(Math.max(0, Math.min(59, parseInt(match[2], 10) || 0))).padStart(2, '0');
+    return `${hour}:${minute}`;
+}
+
+function to12HourDisplay(time24) {
+    const [hRaw = '09', mRaw = '00'] = normalizeTime24(time24).split(':');
+    const hour24 = parseInt(hRaw, 10);
+    const meridiem = hour24 >= 12 ? 'PM' : 'AM';
+    const hour12 = hour24 % 12 || 12;
+    return `${String(hour12).padStart(2, '0')}:${mRaw} ${meridiem}`;
+}
+
+function to24HourValue(displayValue) {
+    const raw = String(displayValue || '').trim();
+    const match = raw.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+    if (!match) return normalizeTime24(raw || '09:00');
+
+    let hour = parseInt(match[1], 10);
+    const minute = String(Math.max(0, Math.min(59, parseInt(match[2], 10) || 0))).padStart(2, '0');
+    const meridiem = match[3].toUpperCase();
+
+    hour = Math.max(1, Math.min(12, hour));
+    if (meridiem === 'PM' && hour !== 12) hour += 12;
+    if (meridiem === 'AM' && hour === 12) hour = 0;
+
+    return `${String(hour).padStart(2, '0')}:${minute}`;
+}
+
+function parseDisplayTime(displayValue) {
+    const time24 = to24HourValue(displayValue);
+    const [hRaw = '09', mRaw = '00'] = time24.split(':');
+    const hour24 = parseInt(hRaw, 10);
+    const meridiem = hour24 >= 12 ? 'PM' : 'AM';
+    const hour12 = hour24 % 12 || 12;
+    return {
+        hour: String(hour12).padStart(2, '0'),
+        minute: mRaw,
+        meridiem
+    };
+}
+
+function ensureClockPicker() {
+    let picker = document.getElementById('clockPicker');
+    if (picker) return picker;
+
+    picker = document.createElement('div');
+    picker.id = 'clockPicker';
+    picker.className = 'clock-picker hidden';
+    picker.innerHTML = `
+        <div class="clock-picker-title" id="clockPickerTitle">Select Hour</div>
+        <div class="clock-face" id="clockFace">
+            <div class="clock-center" id="clockCenter">09:00 AM</div>
+        </div>
+        <div class="clock-meridiem" id="clockMeridiem">
+            <button type="button" class="clock-meridiem-btn" data-meridiem="AM">AM</button>
+            <button type="button" class="clock-meridiem-btn" data-meridiem="PM">PM</button>
+        </div>
+    `;
+
+    picker.querySelectorAll('.clock-meridiem-btn').forEach(btn => {
+        btn.addEventListener('click', e => {
+            e.stopPropagation();
+            selectedMeridiem = btn.getAttribute('data-meridiem') || 'AM';
+            updateMeridiemButtons();
+            updateClockCenter();
+        });
+    });
+
+    document.body.appendChild(picker);
+    return picker;
+}
+
+function openClockPicker(input, event) {
+    event.stopPropagation();
+    activeTimeInput = input;
+
+    const parsed = parseDisplayTime(input.value);
+    selectedHour = parsed.hour;
+    selectedMinute = parsed.minute;
+    selectedMeridiem = parsed.meridiem;
+    clockStage = 'hour';
+
+    const picker = ensureClockPicker();
+    const rect = input.getBoundingClientRect();
+
+    const left = Math.min(window.innerWidth - 292, Math.max(8, rect.left));
+    const top = Math.min(window.innerHeight - 332, rect.bottom + 8);
+
+    picker.style.left = `${left}px`;
+    picker.style.top = `${top}px`;
+    picker.classList.remove('hidden');
+
+    updateMeridiemButtons();
+    renderClockDial();
+}
+
+function hideClockPicker() {
+    const picker = document.getElementById('clockPicker');
+    if (picker) picker.classList.add('hidden');
+}
+
+function handleOutsideClockClick(event) {
+    const picker = document.getElementById('clockPicker');
+    if (!picker || picker.classList.contains('hidden')) return;
+    if (picker.contains(event.target)) return;
+    if (event.target.classList && event.target.classList.contains('avail-time')) return;
+    hideClockPicker();
+}
+
+function renderClockDial() {
+    const face = document.getElementById('clockFace');
+    const title = document.getElementById('clockPickerTitle');
+    if (!face || !title) return;
+
+    face.querySelectorAll('.clock-tick').forEach(node => node.remove());
+
+    if (clockStage === 'hour') {
+        title.textContent = 'Select Hour';
+        updateClockCenter();
+        const hours = ['12', '01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11'];
+        placeClockTicks(hours, selectedHour, value => {
+            selectedHour = value;
+            clockStage = 'minute';
+            renderClockDial();
+        });
+    } else {
+        title.textContent = `Select Minute (${selectedHour}:__ ${selectedMeridiem})`;
+        updateClockCenter();
+        placeClockTicks(CLOCK_MINUTES, selectedMinute, minute => {
+            selectedMinute = minute;
+            if (activeTimeInput) {
+                activeTimeInput.value = `${selectedHour}:${selectedMinute} ${selectedMeridiem}`;
+            }
+            hideClockPicker();
+        });
+    }
+}
+
+function updateMeridiemButtons() {
+    document.querySelectorAll('#clockMeridiem .clock-meridiem-btn').forEach(btn => {
+        const isActive = btn.getAttribute('data-meridiem') === selectedMeridiem;
+        btn.classList.toggle('active', isActive);
+    });
+}
+
+function updateClockCenter() {
+    const center = document.getElementById('clockCenter');
+    if (!center) return;
+    center.textContent = `${selectedHour}:${selectedMinute} ${selectedMeridiem}`;
+}
+
+function placeClockTicks(values, activeValue, onPick) {
+    const face = document.getElementById('clockFace');
+    const centerX = 128;
+    const centerY = 128;
+    const radius = 102;
+
+    values.forEach((value, index) => {
+        const tick = document.createElement('button');
+        tick.type = 'button';
+        tick.className = `clock-tick${value === activeValue ? ' active' : ''}`;
+        tick.textContent = value;
+
+        const angle = ((index / values.length) * (Math.PI * 2)) - (Math.PI / 2);
+        const x = centerX + radius * Math.cos(angle) - 17;
+        const y = centerY + radius * Math.sin(angle) - 17;
+
+        tick.style.left = `${x}px`;
+        tick.style.top = `${y}px`;
+        tick.addEventListener('click', e => {
+            e.stopPropagation();
+            onPick(value);
+        });
+
+        face.appendChild(tick);
+    });
+}
+
+async function saveAvailability(e) {
+    e.preventDefault();
+    const slots = [];
+    
+    DAYS.forEach((_, i) => {
+        const check = document.querySelector(`.avail-check[data-day="${i}"]`);
+        const start = document.querySelector(`.avail-start[data-day="${i}"]`);
+        const end = document.querySelector(`.avail-end[data-day="${i}"]`);
+        
+        slots.push({
+            day_of_week: i,
+            start_time: to24HourValue(start.value),
+            end_time: to24HourValue(end.value),
+            is_available: check.checked
+        });
+    });
+    
+    try {
+        const result = await API.post('/doctor/api/availability', { slots });
+        if (result.success) Toast.success('Availability updated!');
+    } catch(e) { Toast.error('Failed to save'); }
+}
+
+async function requestLeave() {
+    const dt = document.getElementById('leaveDate').value;
+    if (!dt) { Toast.error('Select a date'); return; }
+    
+    try {
+        const result = await API.post('/doctor/api/leave', {
+            date: dt,
+            reason: document.getElementById('leaveReason').value
+        });
+        if (result.success) Toast.success('Leave marked!');
+    } catch(e) { Toast.error(e.message); }
+}
+</script>
+{% endblock %}

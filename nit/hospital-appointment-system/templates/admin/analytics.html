@@ -1,0 +1,204 @@
+{% extends "dashboard_base.html" %}
+{% block title %}AI Analytics{% endblock %}
+{% block panel_subtitle %}Admin Panel{% endblock %}
+{% block page_title %}AI Scheduling Analytics{% endblock %}
+
+{% block sidebar_nav %}
+<div class="nav-section">
+    <div class="nav-section-title">Management</div>
+    <a href="/admin/dashboard" class="nav-link"><span class="icon">📊</span> Dashboard</a>
+    <a href="/admin/doctors" class="nav-link"><span class="icon">👨‍⚕️</span> Doctors</a>
+    <a href="/admin/departments" class="nav-link"><span class="icon">🏥</span> Departments</a>
+    <a href="/admin/appointments" class="nav-link"><span class="icon">📋</span> Appointments</a>
+    <a href="/admin/analytics" class="nav-link active"><span class="icon">📈</span> AI Analytics</a>
+</div>
+{% endblock %}
+
+{% block content %}
+<!-- AI Stats -->
+<div class="stats-grid mb-24" id="aiStats">
+    <div class="stat-card"><div class="stat-number" id="aiScheduled">-</div><div class="stat-label">AI Scheduled</div></div>
+    <div class="stat-card"><div class="stat-number" id="avgWait">-</div><div class="stat-label">Avg Wait (min)</div></div>
+    <div class="stat-card"><div class="stat-number" id="conflictsDetected">-</div><div class="stat-label">Conflicts Detected</div></div>
+    <div class="stat-card"><div class="stat-number" id="autoRescheduled">-</div><div class="stat-label">Auto-Rescheduled</div></div>
+</div>
+
+<!-- Charts -->
+<div style="display:grid; grid-template-columns:1fr 1fr; gap:24px;" class="mb-24">
+    <div class="card">
+        <div class="card-header"><h3>🕐 Peak Hours Analysis</h3></div>
+        <div class="card-body"><canvas id="peakChart" height="280"></canvas></div>
+    </div>
+    <div class="card">
+        <div class="card-header"><h3>👨‍⚕️ Doctor Workload Distribution</h3></div>
+        <div class="card-body"><canvas id="workloadChart" height="280"></canvas></div>
+    </div>
+</div>
+
+<div style="display:grid; grid-template-columns:1fr 1fr; gap:24px;" class="mb-24">
+    <div class="card">
+        <div class="card-header"><h3>📈 Daily Appointment Trends</h3></div>
+        <div class="card-body"><canvas id="trendChart" height="280"></canvas></div>
+    </div>
+    <div class="card">
+        <div class="card-header"><h3>🎯 Priority Score Distribution</h3></div>
+        <div class="card-body"><canvas id="scoreChart" height="280"></canvas></div>
+    </div>
+</div>
+
+<!-- Scheduling Algorithm Info -->
+<div class="card mb-24">
+    <div class="card-header"><h3>🤖 AI Scheduling Algorithm Details</h3></div>
+    <div class="card-body">
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:24px;">
+            <div>
+                <h4 style="margin-bottom:12px;">Constraint Satisfaction Problem (CSP)</h4>
+                <ul style="list-style:disc; padding-left:20px; line-height:1.8;">
+                    <li><strong>C1:</strong> Doctor availability check</li>
+                    <li><strong>C2:</strong> No overlapping appointments</li>
+                    <li><strong>C3:</strong> Daily patient limit enforcement</li>
+                    <li><strong>C4:</strong> Doctor leave checking</li>
+                    <li><strong>C5:</strong> Minimum gap between appointments</li>
+                </ul>
+            </div>
+            <div>
+                <h4 style="margin-bottom:12px;">Priority Scoring System</h4>
+                <ul style="list-style:disc; padding-left:20px; line-height:1.8;">
+                    <li><strong>Emergency:</strong> Base score 100</li>
+                    <li><strong>Senior Citizen:</strong> +50 bonus</li>
+                    <li><strong>Follow-up:</strong> +30 bonus</li>
+                    <li><strong>Wait Time Factor:</strong> +2 per day waiting</li>
+                    <li><strong>Workload Balancing:</strong> Min-heap allocation</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Conflict Detection Results -->
+<div class="card">
+    <div class="card-header"><h3>⚠️ Detected Scheduling Conflicts</h3></div>
+    <div class="card-body">
+        <table class="table">
+            <thead><tr><th>Type</th><th>Doctor</th><th>Date</th><th>Details</th><th>Severity</th></tr></thead>
+            <tbody id="conflictTableBody">
+                <tr><td colspan="5" class="text-center">Loading...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', loadAnalytics);
+
+async function loadAnalytics() {
+    try {
+        const data = await API.get('/admin/api/analytics');
+        if (!data.success) return;
+
+        // Stats
+        const stats = data.scheduling_stats || {};
+        document.getElementById('aiScheduled').textContent = stats.ai_scheduled || 0;
+        document.getElementById('avgWait').textContent = stats.avg_waiting_time ? stats.avg_waiting_time.toFixed(1) : '0';
+        document.getElementById('conflictsDetected').textContent = stats.conflicts_detected || 0;
+        document.getElementById('autoRescheduled').textContent = stats.auto_rescheduled || 0;
+
+        // Peak Hours Chart
+        const peakHours = data.peak_hours || [];
+        new Chart(document.getElementById('peakChart'), {
+            type: 'bar',
+            data: {
+                labels: peakHours.map(p => p.hour + ':00'),
+                datasets: [{
+                    label: 'Appointments',
+                    data: peakHours.map(p => p.count),
+                    backgroundColor: peakHours.map(p => p.count > (Math.max(...peakHours.map(x=>x.count)) * 0.7) ? '#ef4444' : '#4f46e5'),
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true, title: { display: true, text: 'Number of Appointments' } }, x: { title: { display: true, text: 'Hour of Day' } } }
+            }
+        });
+
+        // Doctor Workload Chart
+        const workloads = data.doctor_workloads || [];
+        new Chart(document.getElementById('workloadChart'), {
+            type: 'bar',
+            data: {
+                labels: workloads.map(w => w.doctor_name || 'Dr.'),
+                datasets: [{
+                    label: 'Workload %',
+                    data: workloads.map(w => w.workload_ratio ? (w.workload_ratio * 100).toFixed(1) : 0),
+                    backgroundColor: workloads.map(w => {
+                        const r = w.workload_ratio || 0;
+                        return r > 0.85 ? '#ef4444' : r > 0.6 ? '#f59e0b' : '#10b981';
+                    }),
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                plugins: { legend: { display: false } },
+                scales: { x: { beginAtZero: true, max: 100, title: { display: true, text: 'Workload %' } } }
+            }
+        });
+
+        // Daily Trends
+        const trends = data.daily_trends || [];
+        new Chart(document.getElementById('trendChart'), {
+            type: 'line',
+            data: {
+                labels: trends.map(t => t.date),
+                datasets: [{
+                    label: 'Appointments',
+                    data: trends.map(t => t.count),
+                    borderColor: '#4f46e5', backgroundColor: 'rgba(79,70,229,0.1)',
+                    fill: true, tension: 0.4, pointRadius: 3
+                }]
+            },
+            options: { responsive: true, scales: { y: { beginAtZero: true } } }
+        });
+
+        // Priority Distribution
+        const priority = data.priority_distribution || [];
+        new Chart(document.getElementById('scoreChart'), {
+            type: 'pie',
+            data: {
+                labels: priority.map(p => p.priority || 'Normal'),
+                datasets: [{
+                    data: priority.map(p => p.count),
+                    backgroundColor: ['#4f46e5', '#f59e0b', '#ef4444', '#10b981', '#8b5cf6']
+                }]
+            },
+            options: { responsive: true }
+        });
+
+        // Conflicts
+        renderConflicts(data.conflicts || []);
+    } catch(e) { console.error(e); }
+}
+
+function renderConflicts(conflicts) {
+    const tbody = document.getElementById('conflictTableBody');
+    if (!conflicts.length) {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center" style="color:var(--success);">✅ No scheduling conflicts detected</td></tr>';
+        return;
+    }
+    tbody.innerHTML = conflicts.map(c => `
+        <tr>
+            <td><span class="badge badge-warning">${c.type || 'Overlap'}</span></td>
+            <td>${c.doctor_name || '-'}</td>
+            <td>${Utils.formatDate(c.date)}</td>
+            <td>${c.details || '-'}</td>
+            <td><span class="badge badge-${c.severity === 'High' ? 'danger' : 'warning'}">${c.severity || 'Medium'}</span></td>
+        </tr>
+    `).join('');
+}
+</script>
+{% endblock %}

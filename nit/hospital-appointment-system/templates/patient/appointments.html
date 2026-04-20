@@ -1,0 +1,718 @@
+{% extends "dashboard_base.html" %}
+
+{% block title %}My Appointments{% endblock %}
+{% block panel_subtitle %}Patient Portal{% endblock %}
+{% block page_title %}My Appointments{% endblock %}
+
+{% block extra_css %}
+<style>
+.appointment-actions-header,
+.appointment-actions-cell {
+    text-align: center;
+    vertical-align: middle;
+}
+
+.appointment-actions {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.appointment-actions .btn {
+    min-width: 96px;
+}
+
+.time-picker-input {
+    cursor: pointer;
+    background: #fff;
+    font-variant-numeric: tabular-nums;
+    padding-right: 42px;
+}
+
+.time-picker-field {
+    position: relative;
+}
+
+.time-picker-field::after {
+    content: '';
+    position: absolute;
+    right: 14px;
+    top: 50%;
+    width: 16px;
+    height: 16px;
+    transform: translateY(-50%);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='8'/%3E%3Cpath d='M12 8v4l2.7 1.8'/%3E%3C/svg%3E");
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    pointer-events: none;
+    opacity: 0.95;
+}
+
+.time-picker-input::placeholder {
+    color: var(--gray-400);
+}
+
+.time-picker {
+    position: fixed;
+    width: 332px;
+    max-height: calc(100vh - 24px);
+    overflow-y: auto;
+    border-radius: 28px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.98));
+    border: 1px solid rgba(148, 163, 184, 0.22);
+    box-shadow: 0 30px 70px rgba(15, 23, 42, 0.18);
+    z-index: 8000;
+    padding: 16px;
+    backdrop-filter: blur(18px);
+}
+
+.time-picker.hidden {
+    display: none;
+}
+
+.time-picker-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.time-picker-copy {
+    min-width: 0;
+}
+
+.time-picker-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--gray-900);
+    line-height: 1.2;
+}
+
+.time-picker-subtitle {
+    margin-top: 4px;
+    color: var(--gray-600);
+    font-size: 0.82rem;
+}
+
+.time-picker-pill {
+    border: 1px solid var(--gray-200);
+    background: #fff;
+    color: var(--gray-700);
+    border-radius: 9999px;
+    padding: 7px 12px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.time-picker-pill:hover {
+    border-color: var(--primary);
+    color: var(--primary-dark);
+}
+
+.time-picker-stage {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.time-picker-stage-btn {
+    flex: 1;
+    border: 1px solid var(--gray-200);
+    background: #fff;
+    color: var(--gray-600);
+    border-radius: 9999px;
+    padding: 9px 12px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.time-picker-stage-btn.active {
+    background: var(--primary);
+    border-color: var(--primary-dark);
+    color: #fff;
+}
+
+.time-dial {
+    position: relative;
+    width: 284px;
+    height: 284px;
+    margin: 0 auto;
+    border-radius: 50%;
+    background: radial-gradient(circle at center, #1A2332 0%, #243244 58%, #2d3d52 100%);
+    border: 1px solid rgba(148, 163, 184, 0.24);
+    overflow: hidden;
+}
+
+.time-dial::before {
+    content: '';
+    position: absolute;
+    inset: 24px;
+    border-radius: 50%;
+    border: 1px dashed rgba(148, 163, 184, 0.22);
+    pointer-events: none;
+}
+
+.time-dial-center {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 102px;
+    height: 102px;
+    border-radius: 50%;
+    background: linear-gradient(180deg, var(--primary-bg), rgba(59, 130, 246, 0.08));
+    border: 1px solid rgba(59, 130, 246, 0.18);
+    color: var(--primary-dark);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    font-weight: 800;
+    line-height: 1.05;
+    pointer-events: none;
+}
+
+.time-dial-center .label {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--primary);
+    margin-bottom: 5px;
+}
+
+.time-dial-center .value {
+    font-size: 1.3rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.time-dial-tick {
+    position: absolute;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 1px solid rgba(148, 163, 184, 0.42);
+    background: rgba(255, 255, 255, 0.95);
+    color: var(--gray-700);
+    font-size: 0.8rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: transform 0.15s ease, background 0.15s ease, color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+    box-shadow: 0 2px 6px rgba(15, 23, 42, 0.05);
+}
+
+.time-dial-tick:hover {
+    transform: translateY(-1px) scale(1.03);
+    border-color: var(--primary);
+    color: var(--primary-dark);
+    background: #eff6ff;
+}
+
+.time-dial-tick.active {
+    background: linear-gradient(180deg, var(--primary), #2563eb);
+    color: #fff;
+    border-color: var(--primary-dark);
+    box-shadow: 0 10px 18px rgba(37, 99, 235, 0.24);
+}
+
+.time-picker-meridiem {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.time-picker-meridiem-btn {
+    border: 1px solid var(--gray-200);
+    background: #fff;
+    color: var(--gray-700);
+    border-radius: 9999px;
+    padding: 7px 14px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.time-picker-meridiem-btn.active {
+    background: var(--primary);
+    color: #fff;
+    border-color: var(--primary-dark);
+}
+</style>
+{% endblock %}
+
+{% block sidebar_nav %}
+<div class="nav-section">
+    <div class="nav-section-title">Menu</div>
+    <a href="/patient/dashboard" class="nav-link"><span class="icon">📊</span> Dashboard</a>
+    <a href="/patient/book" class="nav-link"><span class="icon">📅</span> Book Appointment</a>
+    <a href="/patient/appointments" class="nav-link active"><span class="icon">📋</span> My Appointments</a>
+</div>
+{% endblock %}
+
+{% block content %}
+<!-- Filters -->
+<div class="card mb-24">
+    <div class="card-body d-flex align-center gap-16 flex-wrap">
+        <label class="form-label" style="margin:0;">Filter:</label>
+        <select id="statusFilter" class="form-select" style="width:200px;" onchange="loadAppointments()">
+            <option value="all">All Appointments</option>
+            <option value="scheduled">Scheduled</option>
+            <option value="confirmed">Confirmed</option>
+            <option value="completed">Completed</option>
+            <option value="cancelled">Cancelled</option>
+        </select>
+    </div>
+</div>
+
+<!-- Appointments Table -->
+<div class="card">
+    <div class="card-header">
+        <h3>📋 Appointment History</h3>
+    </div>
+    <div class="table-container">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Doctor</th>
+                    <th>Department</th>
+                    <th>Date</th>
+                    <th>Time</th>
+                    <th>Priority</th>
+                    <th>Status</th>
+                    <th>Wait Time</th>
+                    <th class="appointment-actions-header">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="appointmentsTable">
+                <tr><td colspan="9" class="text-center"><div class="spinner" style="margin:20px auto;"></div></td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Cancel Modal -->
+<div class="modal-overlay" id="cancelModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>Cancel Appointment</h3>
+            <button class="modal-close" onclick="Modal.hide('#cancelModal')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p>Are you sure you want to cancel this appointment? The AI system will automatically reschedule affected patients.</p>
+            <div class="form-group mt-16">
+                <label class="form-label">Cancellation Reason</label>
+                <textarea id="cancelReason" class="form-textarea" placeholder="Please provide a reason..."></textarea>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="Modal.hide('#cancelModal')">Keep Appointment</button>
+            <button class="btn btn-danger" id="confirmCancelBtn" onclick="confirmCancel()">Cancel Appointment</button>
+        </div>
+    </div>
+</div>
+
+<!-- Reschedule Modal -->
+<div class="modal-overlay" id="rescheduleModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>Reschedule Appointment</h3>
+            <button class="modal-close" onclick="hideRescheduleTimePicker(); Modal.hide('#rescheduleModal')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label class="form-label">New Date *</label>
+                <input type="date" id="newDate" class="form-input">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Preferred Time (optional)</label>
+                <div class="time-picker-field">
+                    <input type="text" id="newTime" class="form-input time-picker-input" placeholder="Choose a time" readonly onclick="openRescheduleTimePicker(this, event)">
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="hideRescheduleTimePicker(); Modal.hide('#rescheduleModal')">Cancel</button>
+            <button class="btn btn-primary" onclick="confirmReschedule()">Reschedule</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let cancelApptId = null;
+let rescheduleApptId = null;
+let activeRescheduleTimeInput = null;
+let rescheduleClockStage = 'hour';
+let selectedRescheduleHour = '09';
+let selectedRescheduleMinute = '00';
+let selectedRescheduleMeridiem = 'AM';
+
+const RESCHEDULE_CLOCK_MINUTES = Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, '0'));
+
+document.addEventListener('DOMContentLoaded', loadAppointments);
+document.addEventListener('click', handleOutsideRescheduleClockClick);
+window.addEventListener('resize', hideRescheduleTimePicker);
+document.addEventListener('DOMContentLoaded', () => {
+    const overlay = document.getElementById('rescheduleModal');
+    if (overlay) {
+        overlay.addEventListener('click', event => {
+            if (event.target === overlay) hideRescheduleTimePicker();
+        });
+    }
+});
+
+async function loadAppointments() {
+    const status = document.getElementById('statusFilter').value;
+    
+    try {
+        const result = await API.get(`/patient/api/appointments?status=${status}`);
+        if (result.success) {
+            renderTable(result.appointments);
+        }
+    } catch (error) {
+        Toast.error('Failed to load appointments');
+    }
+}
+
+function renderTable(appointments) {
+    const tbody = document.getElementById('appointmentsTable');
+    
+    if (!appointments || appointments.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state"><div class="icon">📋</div><h3>No appointments found</h3></div></td></tr>`;
+        return;
+    }
+    
+    tbody.innerHTML = appointments.map(appt => `
+        <tr>
+            <td>#${appt.id}</td>
+            <td><strong>${appt.doctor_name}</strong></td>
+            <td>${appt.department}</td>
+            <td>${Utils.formatDate(appt.appointment_date)}</td>
+            <td>${Utils.formatTime(appt.start_time)}</td>
+            <td><span class="${Utils.priorityBadge(appt.priority)}">${appt.priority}</span></td>
+            <td><span class="${Utils.statusBadge(appt.status)}">${appt.status}</span></td>
+            <td>${appt.estimated_wait_time ? appt.estimated_wait_time + ' min' : '-'}</td>
+            <td class="appointment-actions-cell">
+                ${['scheduled', 'confirmed'].includes(appt.status) ? `
+                    <div class="appointment-actions">
+                        <button class="btn btn-sm btn-secondary" onclick="openReschedule(${appt.id})">Reschedule</button>
+                        <button class="btn btn-sm btn-danger" onclick="openCancel(${appt.id})">Cancel</button>
+                    </div>
+                ` : '-'}
+            </td>
+        </tr>
+    `).join('');
+}
+
+function openCancel(id) {
+    cancelApptId = id;
+    Modal.show('#cancelModal');
+}
+
+async function confirmCancel() {
+    if (!cancelApptId) return;
+    
+    try {
+        const result = await API.post(`/patient/api/cancel/${cancelApptId}`, {
+            reason: document.getElementById('cancelReason').value
+        });
+        
+        if (result.success) {
+            Toast.success('Appointment cancelled. AI auto-rescheduling applied.');
+            Modal.hide('#cancelModal');
+            loadAppointments();
+        }
+    } catch (error) {
+        Toast.error(error.message || 'Failed to cancel');
+    }
+}
+
+function openReschedule(id) {
+    rescheduleApptId = id;
+    document.getElementById('newDate').min = Utils.today();
+    document.getElementById('newTime').value = '';
+    hideRescheduleTimePicker();
+    Modal.show('#rescheduleModal');
+}
+
+async function confirmReschedule() {
+    if (!rescheduleApptId) return;
+    
+    const newDate = document.getElementById('newDate').value;
+    if (!newDate) {
+        Toast.error('Please select a new date');
+        return;
+    }
+
+    const newTime = document.getElementById('newTime').value;
+    
+    try {
+        const result = await API.post(`/patient/api/reschedule/${rescheduleApptId}`, {
+            new_date: newDate,
+            new_time: newTime ? rescheduleDisplayTimeTo24Hour(newTime) : null
+        });
+        
+        if (result.success) {
+            Toast.success('Appointment rescheduled by AI!');
+            hideRescheduleTimePicker();
+            Modal.hide('#rescheduleModal');
+            loadAppointments();
+        }
+    } catch (error) {
+        Toast.error(error.message || 'Failed to reschedule');
+    }
+}
+
+function normalizeRescheduleTime24(value) {
+    const raw = String(value || '').trim();
+    const match = raw.match(/^(\d{1,2}):(\d{2})/);
+    if (!match) return '09:00';
+
+    const hour = String(Math.max(0, Math.min(23, parseInt(match[1], 10) || 0))).padStart(2, '0');
+    const minute = String(Math.max(0, Math.min(59, parseInt(match[2], 10) || 0))).padStart(2, '0');
+    return `${hour}:${minute}`;
+}
+
+function rescheduleDisplayTimeTo24Hour(displayValue) {
+    const raw = String(displayValue || '').trim();
+    const match = raw.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+    if (!match) return normalizeRescheduleTime24(raw || '09:00');
+
+    let hour = parseInt(match[1], 10);
+    const minute = String(Math.max(0, Math.min(59, parseInt(match[2], 10) || 0))).padStart(2, '0');
+    const meridiem = match[3].toUpperCase();
+
+    hour = Math.max(1, Math.min(12, hour));
+    if (meridiem === 'PM' && hour !== 12) hour += 12;
+    if (meridiem === 'AM' && hour === 12) hour = 0;
+
+    return `${String(hour).padStart(2, '0')}:${minute}`;
+}
+
+function rescheduleParseDisplayTime(displayValue) {
+    const time24 = rescheduleDisplayTimeTo24Hour(displayValue);
+    const [hourRaw = '09', minuteRaw = '00'] = time24.split(':');
+    const hour24 = parseInt(hourRaw, 10);
+    const meridiem = hour24 >= 12 ? 'PM' : 'AM';
+    const hour12 = hour24 % 12 || 12;
+
+    return {
+        hour: String(hour12).padStart(2, '0'),
+        minute: minuteRaw,
+        meridiem
+    };
+}
+
+function ensureRescheduleClockPicker() {
+    let picker = document.getElementById('rescheduleClockPicker');
+    if (picker) return picker;
+
+    picker = document.createElement('div');
+    picker.id = 'rescheduleClockPicker';
+    picker.className = 'time-picker hidden';
+    picker.innerHTML = `
+        <div class="time-picker-head">
+            <div class="time-picker-copy">
+                <div class="time-picker-title">Pick a time</div>
+                <div class="time-picker-subtitle">Choose an hour, minute, and AM or PM</div>
+            </div>
+            <button type="button" class="time-picker-pill" onclick="hideRescheduleTimePicker()">Close</button>
+        </div>
+        <div class="time-picker-stage">
+            <button type="button" class="time-picker-stage-btn active" data-stage="hour">Hour</button>
+            <button type="button" class="time-picker-stage-btn" data-stage="minute">Minute</button>
+        </div>
+        <div class="time-dial" id="rescheduleClockDial">
+            <div class="time-dial-center" id="rescheduleClockCenter">
+                <span class="label">Selected</span>
+                <span class="value">09:00 AM</span>
+            </div>
+        </div>
+        <div class="time-picker-meridiem" id="rescheduleClockMeridiem">
+            <button type="button" class="time-picker-meridiem-btn" data-meridiem="AM">AM</button>
+            <button type="button" class="time-picker-meridiem-btn" data-meridiem="PM">PM</button>
+        </div>
+    `;
+
+    picker.querySelectorAll('.time-picker-stage-btn').forEach(btn => {
+        btn.addEventListener('click', event => {
+            event.stopPropagation();
+            rescheduleClockStage = btn.getAttribute('data-stage') || 'hour';
+            renderRescheduleClockDial();
+        });
+    });
+
+    picker.querySelectorAll('.time-picker-meridiem-btn').forEach(btn => {
+        btn.addEventListener('click', event => {
+            event.stopPropagation();
+            selectedRescheduleMeridiem = btn.getAttribute('data-meridiem') || 'AM';
+            updateRescheduleMeridiemButtons();
+            updateRescheduleClockCenter();
+            renderRescheduleClockDial();
+        });
+    });
+
+    document.body.appendChild(picker);
+    return picker;
+}
+
+function openRescheduleTimePicker(input, event) {
+    event.stopPropagation();
+    activeRescheduleTimeInput = input;
+
+    const parsed = rescheduleParseDisplayTime(input.value);
+    selectedRescheduleHour = parsed.hour;
+    selectedRescheduleMinute = parsed.minute;
+    selectedRescheduleMeridiem = parsed.meridiem;
+    rescheduleClockStage = 'hour';
+
+    const picker = ensureRescheduleClockPicker();
+    const rect = input.getBoundingClientRect();
+    picker.classList.remove('hidden');
+    picker.style.visibility = 'hidden';
+    picker.style.left = '0px';
+    picker.style.top = '0px';
+
+    const pickerWidth = picker.offsetWidth;
+    const pickerHeight = picker.offsetHeight;
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    const spacing = 10;
+
+    let left = rect.left;
+    if (left + pickerWidth + 8 > viewportWidth) {
+        left = viewportWidth - pickerWidth - 8;
+    }
+    left = Math.max(8, left);
+
+    const belowTop = rect.bottom + spacing;
+    const aboveTop = rect.top - pickerHeight - spacing;
+    let top = belowTop;
+
+    if (belowTop + pickerHeight > viewportHeight - 8 && aboveTop >= 8) {
+        top = aboveTop;
+    } else if (belowTop + pickerHeight > viewportHeight - 8) {
+        top = Math.max(8, viewportHeight - pickerHeight - 8);
+    }
+
+    const fitsViewport = top >= 8 && top + pickerHeight <= viewportHeight - 8;
+    if (!fitsViewport) {
+        left = Math.max(8, Math.round((viewportWidth - pickerWidth) / 2));
+        top = Math.max(8, Math.round((viewportHeight - pickerHeight) / 2));
+    }
+
+    picker.style.left = `${left}px`;
+    picker.style.top = `${top}px`;
+    picker.style.visibility = 'visible';
+    picker.classList.remove('hidden');
+
+    updateRescheduleMeridiemButtons();
+    renderRescheduleClockDial();
+}
+
+function hideRescheduleTimePicker() {
+    const picker = document.getElementById('rescheduleClockPicker');
+    if (picker) picker.classList.add('hidden');
+}
+
+function handleOutsideRescheduleClockClick(event) {
+    const picker = document.getElementById('rescheduleClockPicker');
+    if (!picker || picker.classList.contains('hidden')) return;
+    if (picker.contains(event.target)) return;
+    if (event.target.classList && event.target.classList.contains('time-picker-input')) return;
+    hideRescheduleTimePicker();
+}
+
+function renderRescheduleClockDial() {
+    const dial = document.getElementById('rescheduleClockDial');
+    if (!dial) return;
+
+    const existingTicks = dial.querySelectorAll('.time-dial-tick');
+    existingTicks.forEach(tick => tick.remove());
+
+    const centerLabel = document.querySelector('#rescheduleClockCenter .label');
+    if (centerLabel) centerLabel.textContent = rescheduleClockStage === 'hour' ? 'Select hour' : 'Select minute';
+
+    updateRescheduleClockCenter();
+
+    if (rescheduleClockStage === 'hour') {
+        const hours = ['12', '01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11'];
+        placeRescheduleClockTicks(hours, selectedRescheduleHour, value => {
+            selectedRescheduleHour = value;
+            rescheduleClockStage = 'minute';
+            renderRescheduleClockDial();
+        });
+    } else {
+        placeRescheduleClockTicks(RESCHEDULE_CLOCK_MINUTES, selectedRescheduleMinute, minute => {
+            selectedRescheduleMinute = minute;
+            if (activeRescheduleTimeInput) {
+                activeRescheduleTimeInput.value = `${selectedRescheduleHour}:${selectedRescheduleMinute} ${selectedRescheduleMeridiem}`;
+            }
+            hideRescheduleTimePicker();
+        });
+    }
+
+    document.querySelectorAll('#rescheduleClockPicker .time-picker-stage-btn').forEach(btn => {
+        const isActive = btn.getAttribute('data-stage') === rescheduleClockStage;
+        btn.classList.toggle('active', isActive);
+    });
+}
+
+function updateRescheduleMeridiemButtons() {
+    document.querySelectorAll('#rescheduleClockMeridiem .time-picker-meridiem-btn').forEach(btn => {
+        const isActive = btn.getAttribute('data-meridiem') === selectedRescheduleMeridiem;
+        btn.classList.toggle('active', isActive);
+    });
+}
+
+function updateRescheduleClockCenter() {
+    const center = document.querySelector('#rescheduleClockCenter .value');
+    if (!center) return;
+    center.textContent = `${selectedRescheduleHour}:${selectedRescheduleMinute} ${selectedRescheduleMeridiem}`;
+}
+
+function placeRescheduleClockTicks(values, activeValue, onPick) {
+    const dial = document.getElementById('rescheduleClockDial');
+    const centerX = 142;
+    const centerY = 142;
+    const radius = 106;
+
+    values.forEach((value, index) => {
+        const tick = document.createElement('button');
+        tick.type = 'button';
+        tick.className = `time-dial-tick${value === activeValue ? ' active' : ''}`;
+        tick.textContent = value;
+
+        const angle = ((index / values.length) * (Math.PI * 2)) - (Math.PI / 2);
+        const x = centerX + radius * Math.cos(angle) - 18;
+        const y = centerY + radius * Math.sin(angle) - 18;
+
+        tick.style.left = `${x}px`;
+        tick.style.top = `${y}px`;
+        tick.addEventListener('click', event => {
+            event.stopPropagation();
+            onPick(value);
+        });
+
+        dial.appendChild(tick);
+    });
+}
+</script>
+{% endblock %}

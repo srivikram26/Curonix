@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block title %}Doctor Verification - AI Hospital Scheduler{% endblock %}
+
+{% block body %}
+<div class="auth-page">
+    <div class="auth-container">
+        <div class="auth-logo">
+            <img src="/static/images/site-logo.png" alt="Curonix Logo" class="logo-image">
+            <h1>Doctor Verification</h1>
+            <p>Verify your hospital email and scan your hospital ID card</p>
+        </div>
+
+        <div id="alert-container"></div>
+
+        <form id="doctorVerifyForm" onsubmit="handleDoctorVerification(event)">
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">First Name *</label>
+                    <input type="text" id="first_name" class="form-input"
+                           placeholder="First name" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Last Name *</label>
+                    <input type="text" id="last_name" class="form-input"
+                           placeholder="Last name" required>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Hospital Email Address *</label>
+                <input type="email" id="doctor_email" class="form-input"
+                       placeholder="name@hospital.com" required>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Scan Hospital ID Card *</label>
+                <input type="file" id="id_scan" class="form-input" accept=".png,.jpg,.jpeg,.pdf,image/*,.pdf" required>
+                <small class="helper-text">Upload PNG, JPG, JPEG, or PDF (max 5MB)</small>
+            </div>
+
+            <button type="submit" class="btn btn-primary w-full btn-lg" id="verifyBtn">
+                Verify and Continue
+            </button>
+        </form>
+
+        <div class="auth-footer">
+            <a href="{{ url_for('auth.select_role_page') }}">← Back to role selection</a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.helper-text {
+    display: block;
+    margin-top: 6px;
+    color: #64748b;
+    font-size: 0.8rem;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+async function handleDoctorVerification(event) {
+    event.preventDefault();
+
+    const btn = document.getElementById('verifyBtn');
+    const firstName = document.getElementById('first_name').value.trim();
+    const lastName = document.getElementById('last_name').value.trim();
+    const email = document.getElementById('doctor_email').value.trim().toLowerCase();
+    const fileInput = document.getElementById('id_scan');
+
+    if (!firstName || !lastName) {
+        document.getElementById('alert-container').innerHTML =
+            '<div class="alert alert-danger">⚠️ First name and last name are required</div>';
+        return;
+    }
+
+    if (!fileInput.files || !fileInput.files[0]) {
+        document.getElementById('alert-container').innerHTML =
+            '<div class="alert alert-danger">⚠️ Please select a hospital ID scan file</div>';
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('first_name', firstName);
+    formData.append('last_name', lastName);
+    formData.append('email', email);
+    formData.append('id_scan', fileInput.files[0]);
+
+    btn.disabled = true;
+    btn.textContent = 'Verifying...';
+
+    try {
+        const response = await fetch('{{ url_for('auth.verify_doctor_complete') }}', {
+            method: 'POST',
+            body: formData,
+            credentials: 'same-origin'
+        });
+
+        const result = await response.json();
+
+        if (!response.ok || !result.success) {
+            throw new Error(result.error || `HTTP ${response.status}`);
+        }
+
+        if (result.success) {
+            Toast.success(result.message || 'Verification successful');
+            setTimeout(() => {
+                window.location.href = result.redirect || '{{ url_for('auth.register_page', role='doctor') }}';
+            }, 900);
+        }
+    } catch (error) {
+        document.getElementById('alert-container').innerHTML = `
+            <div class="alert alert-danger">⚠️ ${error.message}</div>
+        `;
+        btn.disabled = false;
+        btn.textContent = 'Verify and Continue';
+    }
+}
+</script>
+{% endblock %}

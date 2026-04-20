@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Curonix</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            min-height: 100vh;
+            background-color: #ffffff;
+            background-image: none;
+            animation: none;
+            overflow: hidden;
+            position: relative;
+        }
+
+        body::before,
+        body::after {
+            content: "";
+            position: absolute;
+            width: 380px;
+            height: 380px;
+            border-radius: 50%;
+            filter: blur(70px);
+            opacity: 0;
+            z-index: 0;
+            pointer-events: none;
+            display: none;
+        }
+
+        body::before {
+            background: transparent;
+            top: -110px;
+            left: -90px;
+            animation: none;
+        }
+
+        body::after {
+            background: transparent;
+            right: -120px;
+            bottom: -120px;
+            animation: none;
+        }
+
+        @keyframes gradientShift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        @keyframes blobMoveA {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            50% { transform: translate(40px, 60px) scale(1.12); }
+        }
+
+        @keyframes blobMoveB {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            50% { transform: translate(-50px, -30px) scale(1.08); }
+        }
+
+        .bg-waves {
+            position: absolute;
+            inset: -20%;
+            z-index: 0;
+            pointer-events: none;
+            overflow: hidden;
+            display: none;
+        }
+
+        .wave {
+            position: absolute;
+            width: 130%;
+            height: 130%;
+            border-radius: 42%;
+            mix-blend-mode: screen;
+            opacity: 0.5;
+            filter: blur(10px);
+            transform-origin: center;
+        }
+
+        .wave-1 {
+            display: none;
+        }
+
+        .wave-2 {
+            display: none;
+        }
+
+        @keyframes waveFlowA {
+            0% { transform: rotate(0deg) scale(1); }
+            50% { transform: rotate(180deg) scale(1.08); }
+            100% { transform: rotate(360deg) scale(1); }
+        }
+
+        @keyframes waveFlowB {
+            0% { transform: rotate(360deg) scale(1); }
+            50% { transform: rotate(180deg) scale(1.12); }
+            100% { transform: rotate(0deg) scale(1); }
+        }
+        
+        /* Animated background particles */
+        .particles {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            z-index: 0;
+            display: none;
+        }
+        
+        .particle {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background: rgba(7, 94, 84, 0.08);
+            border-radius: 50%;
+            animation: drift 18s linear infinite, twinkle 2.8s ease-in-out infinite;
+        }
+        
+        .particle:nth-child(1) { left: 10%; animation-delay: 0s; }
+        .particle:nth-child(2) { left: 20%; animation-delay: 2s; }
+        .particle:nth-child(3) { left: 30%; animation-delay: 4s; }
+        .particle:nth-child(4) { left: 40%; animation-delay: 6s; }
+        .particle:nth-child(5) { left: 50%; animation-delay: 8s; }
+        .particle:nth-child(6) { left: 60%; animation-delay: 10s; }
+        .particle:nth-child(7) { left: 70%; animation-delay: 12s; }
+        .particle:nth-child(8) { left: 80%; animation-delay: 14s; }
+        .particle:nth-child(9) { left: 90%; animation-delay: 16s; }
+        .particle:nth-child(10) { left: 15%; animation-delay: 1s; }
+        
+        @keyframes drift {
+            0%, 100% {
+                transform: translateY(110vh) translateX(0) scale(0.6);
+                opacity: 0;
+            }
+            10% {
+                opacity: 0.7;
+            }
+            90% {
+                opacity: 0.8;
+            }
+            100% {
+                transform: translateY(-110vh) translateX(30px) scale(1);
+                opacity: 0;
+            }
+        }
+
+        @keyframes twinkle {
+            0%, 100% { box-shadow: 0 0 0 rgba(7, 94, 84, 0); }
+            50% { box-shadow: 0 0 14px rgba(7, 94, 84, 0.22); }
+        }
+        
+        .landing-link {
+            text-decoration: none;
+            z-index: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100vh;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+
+        .landing-container {
+            text-align: center;
+            cursor: pointer;
+            padding: 24px;
+            max-width: 760px;
+            position: relative;
+            z-index: 2;
+            transition: transform 0.62s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.4s ease-out;
+            animation: softZoomIn 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+        
+        .landing-link:hover .landing-container {
+            transform: translateY(-8px) scale(1.02);
+            filter: saturate(1.08);
+        }
+        
+        @keyframes softZoomIn {
+            from {
+                opacity: 0;
+                transform: scale(0.97);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+        
+        .logo-icon {
+            width: 154px;
+            height: 154px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+            position: relative;
+            animation: iconOrbit 4.2s ease-in-out infinite;
+        }
+
+        .logo-icon .blender-ring {
+            position: absolute;
+            width: 132px;
+            height: 62px;
+            border: 3px solid rgba(210, 182, 255, 0.82);
+            border-radius: 999px;
+            box-shadow: 0 0 18px rgba(198, 162, 255, 0.5), inset 0 0 12px rgba(169, 130, 255, 0.38);
+            mix-blend-mode: screen;
+        }
+
+        .logo-icon .ring-a {
+            display: block;
+            transform: rotate(0deg);
+            animation: blenderSpinA 7s linear infinite;
+        }
+
+        .logo-icon .ring-b {
+            display: block;
+            transform: rotate(60deg);
+            animation: blenderSpinB 8.6s linear infinite;
+        }
+
+        .logo-icon .ring-c {
+            display: block;
+            transform: rotate(120deg);
+            animation: blenderSpinC 9.8s linear infinite;
+        }
+
+        .logo-icon .logo-core {
+            width: 92px;
+            height: 92px;
+            padding: 10px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 30% 30%, rgba(235, 224, 255, 0.55), rgba(183, 140, 255, 0.18));
+            box-shadow: 0 0 38px rgba(186, 146, 255, 0.48);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            z-index: 2;
+            animation: corePulse 3.2s ease-in-out infinite;
+            transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.45s ease;
+        }
+
+        .logo-icon .logo-core img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            filter: drop-shadow(0 10px 22px rgba(0, 0, 0, 0.28));
+            animation: logoSpin 11s linear infinite;
+        }
+        
+        @keyframes iconOrbit {
+            0%, 100% {
+                transform: translateY(0) rotate(0deg) scale(1);
+            }
+            50% {
+                transform: translateY(-8px) rotate(4deg) scale(1.06);
+            }
+        }
+
+        @keyframes blenderSpinA {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes blenderSpinB {
+            from { transform: rotate(60deg); }
+            to { transform: rotate(-300deg); }
+        }
+
+        @keyframes blenderSpinC {
+            from { transform: rotate(120deg); }
+            to { transform: rotate(480deg); }
+        }
+
+        @keyframes corePulse {
+            0%, 100% {
+                transform: scale(1);
+                box-shadow: 0 0 30px rgba(186, 146, 255, 0.42);
+            }
+            50% {
+                transform: scale(1.05);
+                box-shadow: 0 0 44px rgba(170, 125, 255, 0.58);
+            }
+        }
+
+        @keyframes logoSpin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
+        .brand-name {
+            font-size: 4rem;
+            font-weight: 800;
+            color: #5b21b6;
+            text-shadow: 0 0 0 rgba(196, 181, 253, 0), 0 6px 22px rgba(91, 33, 182, 0.18);
+            letter-spacing: -0.5px;
+            margin-bottom: 15px;
+            transition: transform 0.7s cubic-bezier(0.16, 1, 0.3, 1), letter-spacing 0.6s ease, text-shadow 0.6s ease;
+            animation: letterGlow 5.2s ease-in-out infinite;
+        }
+
+        .landing-link:hover .brand-name {
+            transform: scale(1.02) translateY(-1px);
+            letter-spacing: 0.5px;
+            text-shadow: 0 0 8px rgba(214, 188, 255, 0.44), 0 0 18px rgba(186, 146, 255, 0.28), 0 8px 24px rgba(91, 33, 182, 0.2);
+        }
+
+        @keyframes letterGlow {
+            0%, 100% {
+                letter-spacing: -0.5px;
+                text-shadow: 0 0 0 rgba(214, 188, 255, 0), 0 6px 22px rgba(91, 33, 182, 0.18);
+            }
+            50% {
+                letter-spacing: 0;
+                text-shadow: 0 0 5px rgba(214, 188, 255, 0.46), 0 6px 22px rgba(91, 33, 182, 0.18);
+            }
+        }
+        
+        .tagline {
+            font-size: 1.2rem;
+            color: rgba(91, 33, 182, 0.74);
+            font-weight: 400;
+            margin-bottom: 30px;
+            letter-spacing: 0;
+            transition: opacity 0.5s ease-out, letter-spacing 0.55s ease;
+        }
+
+        .landing-link:hover .tagline {
+            opacity: 1;
+            letter-spacing: 0.35px;
+        }
+
+        @keyframes breathe {
+            0%, 100% { opacity: 0.82; }
+            50% { opacity: 1; }
+        }
+        
+        .cta-hint {
+            font-size: 0.95rem;
+            color: rgba(109, 40, 217, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: color 0.35s ease-out, gap 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+            position: relative;
+        }
+
+        .cta-hint::after {
+            content: "";
+            position: absolute;
+            left: 50%;
+            bottom: -6px;
+            width: 0;
+            height: 2px;
+            border-radius: 999px;
+            background: rgba(109, 40, 217, 0.58);
+            transform: translateX(-50%);
+            transition: width 0.55s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .landing-link:hover .cta-hint {
+            color: rgba(91, 33, 182, 0.88);
+            gap: 12px;
+        }
+
+        .landing-link:hover .cta-hint::after {
+            width: 140px;
+        }
+        
+        .cta-hint svg {
+            width: 20px;
+            height: 20px;
+            transition: transform 0.55s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .landing-link:hover .cta-hint svg {
+            transform: translateX(7px) scale(1.08);
+        }
+
+        .landing-link:hover .logo-icon .logo-core {
+            transform: scale(1.08);
+            box-shadow: 0 0 46px rgba(170, 125, 255, 0.62);
+        }
+
+        .reveal-item {
+            opacity: 0;
+        }
+
+        .logo-icon.reveal-item { 
+            cursor: pointer;
+            opacity: 1;
+            filter: none;
+        }
+
+        .logo-icon.reveal-item.play-intro {
+            animation: logoRevealEnter 1.2s cubic-bezier(0.34, 1.56, 0.64, 1) forwards, iconOrbit 4.2s 1.2s ease-in-out infinite;
+        }
+        
+        .brand-name.reveal-item {
+            opacity: 0;
+            display: none;
+        }
+
+        .tagline.reveal-item {
+            opacity: 0;
+            visibility: hidden;
+            display: none;
+        }
+
+        .cta-hint.reveal-item {
+            opacity: 0;
+            display: none;
+        }
+
+        .brand-name.reveal-item.shown { 
+            display: block;
+            animation: revealBlur 0.9s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+        }
+        
+        .tagline.reveal-item.shown { 
+            display: block;
+            visibility: visible;
+            animation: revealBlur 0.9s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+            animation-delay: 0.3s;
+        }
+        
+        .cta-hint.reveal-item.shown { 
+            display: flex;
+            animation: revealBlur 0.9s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+            animation-delay: 0.6s;
+        }
+
+        @keyframes logoRevealEnter {
+            0% {
+                opacity: 0;
+                transform: scale(0.65) rotate(-220deg);
+            }
+            55% {
+                opacity: 1;
+                transform: scale(1.1) rotate(8deg);
+            }
+            100% {
+                opacity: 1;
+                transform: scale(1) rotate(0deg);
+            }
+        }
+
+        .logo-icon.reveal-item.play-intro .logo-core {
+            animation: logoCoreGlow 2s ease-out forwards;
+        }
+
+        @keyframes logoCoreGlow {
+            0% {
+                box-shadow: 0 0 0 rgba(186, 146, 255, 0), 0 0 38px rgba(186, 146, 255, 0.48);
+            }
+            50% {
+                box-shadow: 0 0 80px rgba(170, 125, 255, 0.8), inset 0 0 40px rgba(186, 146, 255, 0.6);
+            }
+            100% {
+                box-shadow: 0 0 38px rgba(186, 146, 255, 0.48);
+            }
+        }
+
+        @keyframes revealBlur {
+            from {
+                opacity: 0;
+                filter: blur(8px);
+            }
+            to {
+                opacity: 1;
+                filter: blur(0);
+            }
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .brand-name {
+                font-size: 2.5rem;
+            }
+            
+            .landing-container {
+                padding: 20px;
+                margin: 20px;
+            }
+            
+            .logo-icon {
+                width: 118px;
+                height: 118px;
+            }
+
+            .logo-icon .blender-ring {
+                width: 102px;
+                height: 48px;
+                border-width: 2px;
+            }
+
+            .logo-icon .logo-core {
+                width: 68px;
+                height: 68px;
+                padding: 8px;
+            }
+            
+            .tagline {
+                font-size: 1rem;
+            }
+        }
+    </style>
+
+</head>
+<body>
+    <div class="bg-waves" aria-hidden="true">
+        <div class="wave wave-1"></div>
+        <div class="wave wave-2"></div>
+    </div>
+
+    <!-- Background particles -->
+    <div class="particles">
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+    </div>
+    
+    <!-- Main content -->
+    <a href="/auth/select-role" class="landing-link" id="landingLink">
+        <div class="landing-container">
+            <div class="logo-icon reveal-item" id="logoIcon" aria-hidden="true">
+                <span class="blender-ring ring-a"></span>
+                <span class="blender-ring ring-b"></span>
+                <span class="blender-ring ring-c"></span>
+                <span class="logo-core">
+                    <img src="/static/images/site-logo.png" alt="Curonix Logo">
+                </span>
+            </div>
+            <h1 class="brand-name reveal-item" id="brandName">Curonix</h1>
+            <p class="tagline reveal-item" id="tagline">AI-Powered Hospital Appointment Scheduling</p>
+            <div class="cta-hint reveal-item" id="ctaHint">
+                <span>Click to get started</span>
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"></path>
+                </svg>
+            </div>
+        </div>
+    </a>
+
+    <script>
+        const landingLink = document.getElementById('landingLink');
+        const logoIcon = document.getElementById('logoIcon');
+        const brandName = document.getElementById('brandName');
+        const tagline = document.getElementById('tagline');
+        const ctaHint = document.getElementById('ctaHint');
+        let revealed = false;
+
+        function playLogoIntro() {
+            logoIcon.classList.remove('play-intro');
+            void logoIcon.offsetWidth;
+            logoIcon.classList.add('play-intro');
+        }
+
+        playLogoIntro();
+
+        window.addEventListener('DOMContentLoaded', function() {
+            playLogoIntro();
+        });
+
+        window.addEventListener('pageshow', function() {
+            playLogoIntro();
+        });
+
+        function revealText() {
+            if (revealed) {
+                return;
+            }
+            revealed = true;
+            brandName.classList.add('shown');
+            tagline.classList.add('shown');
+            ctaHint.classList.add('shown');
+        }
+
+        landingLink.addEventListener('click', function(e) {
+            if (!revealed) {
+                e.preventDefault();
+                if (e.target.closest('#logoIcon')) {
+                    revealText();
+                }
+            }
+        });
+    </script>
+</body>
+</html>

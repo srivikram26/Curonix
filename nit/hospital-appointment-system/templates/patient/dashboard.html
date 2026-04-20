@@ -1,0 +1,194 @@
+{% extends "dashboard_base.html" %}
+
+{% block title %}Patient Dashboard{% endblock %}
+{% block panel_subtitle %}Patient Portal{% endblock %}
+{% block page_title %}My Dashboard{% endblock %}
+
+{% block sidebar_nav %}
+<div class="nav-section">
+    <div class="nav-section-title">Menu</div>
+    <a href="/patient/dashboard" class="nav-link active">
+        <span class="icon">📊</span> Dashboard
+    </a>
+    <a href="/patient/book" class="nav-link">
+        <span class="icon">📅</span> Book Appointment
+    </a>
+    <a href="/patient/appointments" class="nav-link">
+        <span class="icon">📋</span> My Appointments
+    </a>
+</div>
+{% endblock %}
+
+{% block content %}
+<!-- Stats -->
+<div class="stats-grid" id="statsGrid">
+    <div class="stat-card">
+        <div class="stat-icon blue">📅</div>
+        <div class="stat-value" id="statUpcoming">-</div>
+        <div class="stat-label">Upcoming Appointments</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon green">✓</div>
+        <div class="stat-value" id="statCompleted">-</div>
+        <div class="stat-label">Completed Visits</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon orange">📊</div>
+        <div class="stat-value" id="statTotal">-</div>
+        <div class="stat-label">Total Appointments</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon red">🔔</div>
+        <div class="stat-value" id="statNotifications">-</div>
+        <div class="stat-label">Unread Notifications</div>
+    </div>
+</div>
+
+<!-- Content Grid -->
+<div class="grid-2">
+    <!-- Upcoming Appointments -->
+    <div class="card">
+        <div class="card-header">
+            <h3>📅 Upcoming Appointments</h3>
+            <a href="/patient/book" class="btn btn-primary btn-sm">+ Book New</a>
+        </div>
+        <div class="card-body" id="upcomingList">
+            <div class="loading-overlay"><div class="spinner"></div><span>Loading...</span></div>
+        </div>
+    </div>
+    
+    <!-- Recent History -->
+    <div class="card">
+        <div class="card-header">
+            <h3>📋 Recent Visits</h3>
+            <a href="/patient/appointments" class="btn btn-secondary btn-sm">View All</a>
+        </div>
+        <div class="card-body" id="recentList">
+            <div class="loading-overlay"><div class="spinner"></div><span>Loading...</span></div>
+        </div>
+    </div>
+</div>
+
+<!-- Notifications -->
+<div class="card mt-24">
+    <div class="card-header">
+        <h3>🔔 Recent Notifications</h3>
+        <button class="btn btn-secondary btn-sm" onclick="markAllRead()">Mark All Read</button>
+    </div>
+    <div class="card-body" id="notifList">
+        <div class="loading-overlay"><div class="spinner"></div><span>Loading...</span></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Load dashboard data on page load
+document.addEventListener('DOMContentLoaded', loadDashboard);
+
+async function loadDashboard() {
+    try {
+        const [dashData, notifData] = await Promise.all([
+            API.get('/patient/api/dashboard-data'),
+            API.get('/patient/api/notifications')
+        ]);
+        
+        if (dashData.success) {
+            // Update user info
+            document.getElementById('userName').textContent = dashData.user.full_name;
+            document.getElementById('userAvatar').textContent = 
+                dashData.user.first_name[0] + dashData.user.last_name[0];
+            
+            // Update stats
+            document.getElementById('statUpcoming').textContent = dashData.stats.upcoming_count;
+            document.getElementById('statCompleted').textContent = dashData.stats.completed;
+            document.getElementById('statTotal').textContent = dashData.stats.total;
+            document.getElementById('statNotifications').textContent = dashData.unread_notifications;
+            
+            // Render upcoming appointments
+            renderUpcoming(dashData.upcoming);
+            renderRecent(dashData.recent);
+        }
+        
+        if (notifData.success) {
+            renderNotifications(notifData.notifications);
+        }
+    } catch (error) {
+        Toast.error('Failed to load dashboard data');
+    }
+}
+
+function renderUpcoming(appointments) {
+    const container = document.getElementById('upcomingList');
+    if (!appointments || appointments.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <div class="icon">📅</div>
+                <h3>No Upcoming Appointments</h3>
+                <p>Book a new appointment to get started</p>
+                <a href="/patient/book" class="btn btn-primary">Book Now</a>
+            </div>
+        `;
+        return;
+    }
+    
+    container.innerHTML = appointments.map(appt => `
+        <div style="padding:14px 0; border-bottom:1px solid var(--gray-100); display:flex; justify-content:space-between; align-items:center;">
+            <div>
+                <strong>${appt.doctor_name}</strong>
+                <div class="text-sm text-muted">${appt.department} • ${Utils.formatDate(appt.appointment_date)}</div>
+                <div class="text-sm">${Utils.formatTime(appt.start_time)} - ${Utils.formatTime(appt.end_time)}</div>
+            </div>
+            <div style="text-align:right;">
+                <span class="${Utils.statusBadge(appt.status)}">${appt.status}</span>
+                ${appt.estimated_wait_time > 0 ? `<div class="text-xs text-muted mt-8">~${appt.estimated_wait_time} min wait</div>` : ''}
+            </div>
+        </div>
+    `).join('');
+}
+
+function renderRecent(appointments) {
+    const container = document.getElementById('recentList');
+    if (!appointments || appointments.length === 0) {
+        container.innerHTML = '<div class="empty-state"><div class="icon">📋</div><h3>No visit history yet</h3></div>';
+        return;
+    }
+    
+    container.innerHTML = appointments.map(appt => `
+        <div style="padding:12px 0; border-bottom:1px solid var(--gray-100);">
+            <div class="d-flex justify-between align-center">
+                <strong>${appt.doctor_name}</strong>
+                <span class="${Utils.statusBadge(appt.status)}">${appt.status}</span>
+            </div>
+            <div class="text-sm text-muted">${appt.department} • ${Utils.formatDate(appt.appointment_date)}</div>
+        </div>
+    `).join('');
+}
+
+function renderNotifications(notifications) {
+    const container = document.getElementById('notifList');
+    if (!notifications || notifications.length === 0) {
+        container.innerHTML = '<div class="empty-state"><div class="icon">🔔</div><h3>No notifications</h3></div>';
+        return;
+    }
+    
+    container.innerHTML = notifications.slice(0, 5).map(n => `
+        <div style="padding:12px 0; border-bottom:1px solid var(--gray-100); ${!n.is_read ? 'background:var(--info-bg); padding:12px; border-radius:var(--rounded); margin-bottom:8px;' : ''}">
+            <strong>${n.subject || 'Notification'}</strong>
+            <div class="text-sm text-muted">${n.message}</div>
+            <div class="text-xs text-muted mt-8">${Utils.formatDate(n.sent_at)}</div>
+        </div>
+    `).join('');
+}
+
+async function markAllRead() {
+    try {
+        await API.post('/patient/api/notifications/mark-read');
+        Toast.success('All notifications marked as read');
+        document.getElementById('statNotifications').textContent = '0';
+    } catch (error) {
+        Toast.error('Failed to update notifications');
+    }
+}
+</script>
+{% endblock %}

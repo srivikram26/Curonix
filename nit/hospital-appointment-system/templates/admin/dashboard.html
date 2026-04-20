@@ -1,0 +1,353 @@
+{% extends "dashboard_base.html" %}
+{% block title %}Admin Dashboard{% endblock %}
+{% block panel_subtitle %}Admin Panel{% endblock %}
+{% block page_title %}System Overview{% endblock %}
+
+{% block extra_css %}
+<style>
+.recent-appts-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+}
+
+.recent-appts-scroll {
+    max-height: 360px;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+.recent-appts-table th,
+.recent-appts-table td {
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--gray-100);
+    vertical-align: middle;
+}
+
+.recent-appts-table thead th {
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--gray-500);
+    background: var(--gray-50);
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+.recent-appts-table tbody tr:hover {
+    background: var(--gray-50);
+}
+
+.recent-appts-table .col-patient,
+.recent-appts-table .col-doctor {
+    width: 29%;
+}
+
+.recent-appts-table .col-date {
+    width: 20%;
+}
+
+.recent-appts-table .col-status {
+    width: 22%;
+}
+
+.recent-appts-table .patient-cell,
+.recent-appts-table .doctor-cell {
+    text-align: left;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.recent-appts-table .status-cell,
+.recent-appts-table .date-cell {
+    text-align: center;
+    white-space: nowrap;
+}
+
+.recent-appts-table .status-cell .badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.doctor-activity-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+}
+
+.doctor-activity-table th,
+.doctor-activity-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--gray-100);
+    vertical-align: middle;
+}
+
+.doctor-activity-table thead th {
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--gray-500);
+    background: var(--gray-50);
+}
+
+.doctor-activity-table .col-doctor { width: 46%; text-align: left; }
+.doctor-activity-table .col-department { width: 36%; text-align: left; }
+.doctor-activity-table .col-count { width: 18%; text-align: center; }
+
+.doctor-activity-table .doctor-cell,
+.doctor-activity-table .department-cell {
+    text-align: left;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.doctor-activity-table .count-cell {
+    text-align: center;
+    white-space: nowrap;
+    font-weight: 600;
+}
+
+.dept-overview-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+}
+
+.dept-overview-table th,
+.dept-overview-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--gray-100);
+    vertical-align: middle;
+}
+
+.dept-overview-table thead th {
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--gray-500);
+    background: var(--gray-50);
+}
+
+.dept-overview-table .col-dept-name { width: 54%; text-align: left; }
+.dept-overview-table .col-dept-doctors { width: 23%; text-align: center; }
+.dept-overview-table .col-dept-appts { width: 23%; text-align: center; }
+
+.dept-overview-table .dept-name-cell {
+    text-align: left;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.dept-overview-table .dept-doctors-cell,
+.dept-overview-table .dept-appts-cell {
+    text-align: center;
+    white-space: nowrap;
+    font-weight: 600;
+}
+</style>
+{% endblock %}
+
+{% block sidebar_nav %}
+<div class="nav-section">
+    <div class="nav-section-title">Management</div>
+    <a href="/admin/dashboard" class="nav-link active"><span class="icon">📊</span> Dashboard</a>
+    <a href="/admin/doctors" class="nav-link"><span class="icon">👨‍⚕️</span> Doctors</a>
+    <a href="/admin/departments" class="nav-link"><span class="icon">🏥</span> Departments</a>
+    <a href="/admin/appointments" class="nav-link"><span class="icon">📋</span> Appointments</a>
+    <a href="/admin/analytics" class="nav-link"><span class="icon">📈</span> AI Analytics</a>
+</div>
+{% endblock %}
+
+{% block content %}
+<!-- Stats Grid -->
+<div class="stats-grid" id="statsGrid">
+    <div class="stat-card"><div class="stat-number" id="totalPatients">-</div><div class="stat-label">Total Patients</div></div>
+    <div class="stat-card"><div class="stat-number" id="totalDoctors">-</div><div class="stat-label">Active Doctors</div></div>
+    <div class="stat-card"><div class="stat-number" id="totalAppointments">-</div><div class="stat-label">Total Appointments</div></div>
+    <div class="stat-card"><div class="stat-number" id="todayAppointments">-</div><div class="stat-label">Today's Appointments</div></div>
+</div>
+
+<!-- Charts Row -->
+<div style="display:grid; grid-template-columns:1fr 1fr; gap:24px;" class="mb-24">
+    <div class="card">
+        <div class="card-header"><h3>📈 Daily Appointments (Last 30 Days)</h3></div>
+        <div class="card-body"><canvas id="dailyChart" height="250"></canvas></div>
+    </div>
+    <div class="card">
+        <div class="card-header"><h3>🥧 Priority Distribution</h3></div>
+        <div class="card-body"><canvas id="priorityChart" height="250"></canvas></div>
+    </div>
+</div>
+
+<!-- Department Overview & Recent Appointments -->
+<div style="display:grid; grid-template-columns:1fr 1fr; gap:24px;">
+    <div class="card">
+        <div class="card-header"><h3>🏥 Department Overview</h3></div>
+        <div class="card-body">
+            <div class="table-container">
+            <table class="table dept-overview-table">
+                <thead><tr><th class="col-dept-name">Department</th><th class="col-dept-doctors">Doctors</th><th class="col-dept-appts">Appointments</th></tr></thead>
+                <tbody id="deptTableBody"><tr><td colspan="3" class="text-center">Loading...</td></tr></tbody>
+            </table>
+            </div>
+        </div>
+    </div>
+    <div class="card">
+        <div class="card-header"><h3>🕐 Recent Appointments</h3></div>
+        <div class="card-body">
+            <div class="table-container recent-appts-scroll">
+            <table class="table recent-appts-table">
+                <thead><tr><th class="col-patient">Patient</th><th class="col-doctor">Doctor</th><th class="col-date">Date</th><th class="col-status">Status</th></tr></thead>
+                <tbody id="recentTableBody"><tr><td colspan="4" class="text-center">Loading...</td></tr></tbody>
+            </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Activity Insights -->
+<div style="display:grid; grid-template-columns:1fr 1fr; gap:24px; margin-top:24px;">
+    <div class="card">
+        <div class="card-header"><h3>🩺 Patient Activity (Last 7 Days)</h3></div>
+        <div class="card-body" id="patientActivityList">
+            <div class="text-center text-muted">Loading patient activity...</div>
+        </div>
+    </div>
+    <div class="card">
+        <div class="card-header"><h3>👩‍⚕️ Doctor Activity Leaderboard</h3></div>
+        <div class="card-body">
+            <div class="table-container">
+            <table class="table doctor-activity-table">
+                <thead><tr><th class="col-doctor">Doctor</th><th class="col-department">Department</th><th class="col-count">Appointments</th></tr></thead>
+                <tbody id="doctorActivityBody"><tr><td colspan="3" class="text-center">Loading...</td></tr></tbody>
+            </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let dailyChart, priorityChart;
+
+document.addEventListener('DOMContentLoaded', loadDashboard);
+
+async function loadDashboard() {
+    try {
+        const data = await API.get('/admin/api/dashboard-data');
+        if (!data.success) return;
+
+            const overview = data.overview || {};
+
+            document.getElementById('totalPatients').textContent = overview.total_patients || 0;
+            document.getElementById('totalDoctors').textContent = overview.total_doctors || 0;
+            document.getElementById('totalAppointments').textContent = overview.month_appointments || 0;
+            document.getElementById('todayAppointments').textContent = overview.today_appointments || 0;
+
+            renderDeptTable(data.department_stats || []);
+            renderRecentTable(data.recent_appointments || []);
+            renderPatientActivity(data.patient_activity || []);
+            renderDoctorActivity(data.doctor_activity || []);
+    } catch(e) { console.error(e); }
+
+    loadCharts();
+}
+
+function renderDeptTable(depts) {
+    const tbody = document.getElementById('deptTableBody');
+    if (!depts.length) { tbody.innerHTML = '<tr><td colspan="3" class="text-center">No departments</td></tr>'; return; }
+    tbody.innerHTML = depts.map(d => `
+        <tr>
+            <td class="dept-name-cell">${d.name}</td>
+            <td class="dept-doctors-cell">${d.doctor_count || 0}</td>
+            <td class="dept-appts-cell">${d.appointment_count || 0}</td>
+        </tr>
+    `).join('');
+}
+
+function renderRecentTable(appts) {
+    const tbody = document.getElementById('recentTableBody');
+    if (!appts.length) { tbody.innerHTML = '<tr><td colspan="4" class="text-center">No recent appointments</td></tr>'; return; }
+    tbody.innerHTML = appts.slice(0, 8).map(a => `
+        <tr>
+            <td class="patient-cell">${a.patient_name || 'N/A'}</td>
+            <td class="doctor-cell">${a.doctor_name || 'N/A'}</td>
+            <td class="date-cell">${Utils.formatDate(a.date)}</td>
+            <td class="status-cell"><span class="${Utils.statusBadge(a.status)}">${a.status || '-'}</span></td>
+        </tr>
+    `).join('');
+}
+
+function renderPatientActivity(activity) {
+    const container = document.getElementById('patientActivityList');
+    if (!activity.length) {
+        container.innerHTML = '<div class="text-center text-muted">No recent patient activity.</div>';
+        return;
+    }
+    container.innerHTML = activity.map(record => `
+        <div class="activity-row" style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #eee;">
+            <strong>${record.status}</strong>
+            <span>${record.count || 0}</span>
+        </div>
+    `).join('');
+}
+
+function renderDoctorActivity(activity) {
+    const tbody = document.getElementById('doctorActivityBody');
+    if (!activity.length) { tbody.innerHTML = '<tr><td colspan="3" class="text-center">No doctor activity yet</td></tr>'; return; }
+    tbody.innerHTML = activity.map(record => `
+        <tr>
+            <td class="doctor-cell">${record.doctor}</td>
+            <td class="department-cell">${record.department}</td>
+            <td class="count-cell">${record.count || 0}</td>
+        </tr>
+    `).join('');
+}
+
+async function loadCharts() {
+    try {
+        const data = await API.get('/admin/api/analytics?days=30');
+        if (!data.success) return;
+
+        // Daily Trends
+        const trends = data.daily_trend || [];
+        dailyChart = new Chart(document.getElementById('dailyChart'), {
+            type: 'line',
+            data: {
+                labels: trends.map(t => t.date),
+                datasets: [{
+                    label: 'Appointments',
+                    data: trends.map(t => t.count),
+                    borderColor: '#4f46e5',
+                    backgroundColor: 'rgba(79,70,229,0.1)',
+                    fill: true, tension: 0.4
+                }]
+            },
+            options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+        });
+
+        // Priority Distribution
+        const priority = data.priority_distribution || [];
+        priorityChart = new Chart(document.getElementById('priorityChart'), {
+            type: 'doughnut',
+            data: {
+                labels: priority.map(p => p.priority || 'Normal'),
+                datasets: [{
+                    data: priority.map(p => p.count),
+                    backgroundColor: ['#4f46e5', '#f59e0b', '#ef4444', '#10b981']
+                }]
+            },
+            options: { responsive: true }
+        });
+    } catch(e) { console.error(e); }
+}
+</script>
+{% endblock %}

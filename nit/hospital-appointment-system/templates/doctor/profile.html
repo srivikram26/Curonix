@@ -1,0 +1,361 @@
+{% extends "dashboard_base.html" %}
+
+{% block title %}Doctor Profile{% endblock %}
+{% block panel_subtitle %}Doctor Panel{% endblock %}
+{% block page_title %}My Profile{% endblock %}
+
+{% set qualification_options = ['MBBS', 'MD', 'MS', 'DM', 'DO', 'MCh', 'DNB', 'PhD', 'FNB', 'MDS', 'MBBS+MD', 'Others'] %}
+
+{% block sidebar_nav %}
+<div class="nav-section">
+    <div class="nav-section-title">Menu</div>
+    <a href="/doctor/dashboard" class="nav-link"><span class="icon">📊</span> Dashboard</a>
+    <a href="/doctor/schedule" class="nav-link"><span class="icon">📅</span> My Schedule</a>
+    <a href="/doctor/availability" class="nav-link"><span class="icon">⏰</span> Availability</a>
+    <a href="/doctor/patients" class="nav-link"><span class="icon">👥</span> Patient History</a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="profile-card-wrapper">
+    <div class="card" style="max-width:780px;">
+        <div class="card-header"><h3>👨‍⚕️ Doctor Details</h3></div>
+        <div class="card-body">
+        <form id="doctorProfileForm" onsubmit="updateDoctorProfile(event)">
+        <div class="form-row">
+            <div class="form-group">
+                <label class="form-label">First Name</label>
+                <input type="text" id="first_name" class="form-input profile-editable" value="{{ current_user.first_name }}" readonly>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Last Name</label>
+                <input type="text" id="last_name" class="form-input profile-editable" value="{{ current_user.last_name }}" readonly>
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label class="form-label">Email</label>
+                <input type="text" class="form-input" value="{{ current_user.email }}" readonly>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Department</label>
+                <input type="text" class="form-input" value="{{ doctor.department.name if doctor and doctor.department else '' }}" readonly>
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label class="form-label">Phone</label>
+                <input type="text" id="phone" class="form-input profile-editable" value="{{ current_user.phone or '' }}" readonly>
+            </div>
+            <div class="form-group"></div>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">Address</label>
+            <div class="address-grid">
+                <div class="form-group">
+                    <label class="form-label">Address Line 1</label>
+                    <input type="text" id="address_line1" class="form-input profile-editable" readonly
+                           placeholder="House/Flat No, Street">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Address Line 2 (Optional)</label>
+                    <input type="text" id="address_line2" class="form-input profile-editable" readonly
+                           placeholder="Area, Landmark">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">City</label>
+                    <input type="text" id="address_city" class="form-input profile-editable" readonly
+                           placeholder="City">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">State</label>
+                    <input type="text" id="address_state" class="form-input profile-editable" readonly
+                           placeholder="State">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Postal Code</label>
+                    <input type="text" id="address_postal" class="form-input profile-editable" readonly
+                           placeholder="ZIP / Postal Code">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Country</label>
+                    <input type="text" id="address_country" class="form-input profile-editable" readonly
+                           placeholder="Country">
+                </div>
+            </div>
+            <input type="hidden" id="address">
+            <small class="form-hint">Use the structured address format to help hospital staff locate you faster.</small>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label class="form-label">Specialization</label>
+                <input type="text" id="specialization" class="form-input profile-editable" value="{{ doctor.specialization if doctor else '' }}" readonly>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Qualification</label>
+                <select id="qualification" class="form-input profile-editable-select" disabled>
+                    {% for qual in qualification_options %}
+                        <option value="{{ qual }}" {% if doctor and doctor.qualification == qual %}selected{% endif %}>{{ qual }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group" id="customQualificationGroup" style="display:none;">
+                <label class="form-label">Specify Qualification</label>
+                <input type="text" id="custom_qualification" class="form-input profile-editable" value="{{ doctor.qualification if doctor and doctor.qualification not in qualification_options else '' }}" readonly>
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label class="form-label">Experience (Years)</label>
+                <input type="number" id="experience_years" class="form-input profile-editable" value="{{ doctor.experience_years if doctor else 0 }}" min="0" readonly>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Consultation Fee</label>
+                <div class="input-with-prefix">
+                    <span class="input-prefix">₹</span>
+                    <input type="number" id="consultation_fee" class="form-input profile-editable" value="{{ (doctor.consultation_fee if doctor else 0) | round(0) }}" min="0" step="1" readonly>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">Bio</label>
+            <textarea id="bio" class="form-textarea profile-editable" rows="4" readonly>{{ doctor.bio if doctor and doctor.bio else '' }}</textarea>
+        </div>
+
+        <div class="d-flex align-center" style="gap:12px;">
+            <button type="button" class="btn btn-secondary" id="editProfileBtn" onclick="setEditMode(true)">Edit Profile</button>
+            <button type="submit" class="btn btn-primary" id="saveProfileBtn" style="display:none;">Save Changes</button>
+            <button type="button" class="btn btn-secondary" id="cancelEditBtn" onclick="cancelEdit()" style="display:none;">Cancel</button>
+            <button type="button" class="btn btn-secondary" onclick="handleLogout()">Logout</button>
+        </div>
+        </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.input-with-prefix {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.input-with-prefix .input-prefix {
+    font-weight: 600;
+    color: var(--gray-700, #374151);
+}
+
+.form-hint {
+    display: block;
+    margin-top: 4px;
+    font-size: 0.8rem;
+    color: var(--gray-500, #6b7280);
+}
+
+.address-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px 16px;
+}
+
+@media (max-width: 768px) {
+    .address-grid {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let originalProfileData = {};
+let isEditingProfile = false;
+const qualificationSelect = document.getElementById('qualification');
+const customQualificationInput = document.getElementById('custom_qualification');
+const customQualificationGroup = document.getElementById('customQualificationGroup');
+const qualificationOptions = JSON.parse('{{ qualification_options | tojson | safe }}');
+const otherQualificationValue = JSON.parse('{{ (doctor.qualification if doctor and doctor.qualification not in qualification_options else "") | tojson | safe }}');
+const initialAddress = JSON.parse('{{ (current_user.address or "") | tojson | safe }}');
+
+document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('userName').textContent = '{{ doctor.full_name if doctor else current_user.full_name }}';
+    const first = '{{ current_user.first_name or "" }}';
+    const last = '{{ current_user.last_name or "" }}';
+    document.getElementById('userAvatar').textContent = (first.charAt(0) + last.charAt(0)).toUpperCase() || 'D';
+
+    if (otherQualificationValue) {
+        qualificationSelect.value = 'Others';
+        customQualificationInput.value = otherQualificationValue;
+    }
+    setAddressFieldsFromString(initialAddress);
+    toggleCustomQualification();
+    qualificationSelect.addEventListener('change', toggleCustomQualification);
+
+    originalProfileData = getProfilePayload();
+});
+
+function setEditMode(enabled) {
+    document.querySelectorAll('.profile-editable').forEach(field => {
+        if (enabled) {
+            field.removeAttribute('readonly');
+        } else {
+            field.setAttribute('readonly', 'readonly');
+        }
+    });
+
+    document.querySelectorAll('.profile-editable-select').forEach(select => {
+        select.disabled = !enabled;
+    });
+
+    isEditingProfile = enabled;
+
+    document.getElementById('editProfileBtn').style.display = enabled ? 'none' : 'inline-flex';
+    document.getElementById('saveProfileBtn').style.display = enabled ? 'inline-flex' : 'none';
+    document.getElementById('cancelEditBtn').style.display = enabled ? 'inline-flex' : 'none';
+
+    toggleCustomQualification();
+}
+
+function setAddressFieldsFromString(addressValue) {
+    const raw = String(addressValue || '').trim();
+    const line1El = document.getElementById('address_line1');
+    const line2El = document.getElementById('address_line2');
+    const cityEl = document.getElementById('address_city');
+    const stateEl = document.getElementById('address_state');
+    const postalEl = document.getElementById('address_postal');
+    const countryEl = document.getElementById('address_country');
+
+    line1El.value = '';
+    line2El.value = '';
+    cityEl.value = '';
+    stateEl.value = '';
+    postalEl.value = '';
+    countryEl.value = '';
+
+    if (!raw) {
+        document.getElementById('address').value = '';
+        return;
+    }
+
+    const lines = raw.split('\n').map(part => part.trim()).filter(Boolean);
+
+    if (lines.length >= 3) {
+        line1El.value = lines[0] || '';
+
+        const lastLine = lines[lines.length - 1] || '';
+        const cityStatePostalLine = lines[lines.length - 2] || '';
+        const middleLines = lines.slice(1, -2);
+        line2El.value = middleLines.join(', ');
+
+        const cityStateParts = cityStatePostalLine.split(',').map(part => part.trim()).filter(Boolean);
+        cityEl.value = cityStateParts[0] || '';
+
+        const statePostal = cityStateParts[1] || '';
+        const statePostalMatch = statePostal.match(/^(.*?)(?:\s*-\s*|\s+)([A-Za-z0-9 -]{3,12})$/);
+        if (statePostalMatch) {
+            stateEl.value = statePostalMatch[1].trim();
+            postalEl.value = statePostalMatch[2].trim();
+        } else {
+            stateEl.value = statePostal;
+        }
+
+        countryEl.value = lastLine;
+    } else {
+        line1El.value = raw;
+    }
+
+    document.getElementById('address').value = raw;
+}
+
+function buildAddressString() {
+    const line1 = document.getElementById('address_line1').value.trim();
+    const line2 = document.getElementById('address_line2').value.trim();
+    const city = document.getElementById('address_city').value.trim();
+    const state = document.getElementById('address_state').value.trim();
+    const postal = document.getElementById('address_postal').value.trim();
+    const country = document.getElementById('address_country').value.trim();
+
+    const statePostal = [state, postal].filter(Boolean).join(' - ');
+    const cityStatePostal = [city, statePostal].filter(Boolean).join(', ');
+
+    const formatted = [line1, line2, cityStatePostal, country].filter(Boolean).join('\n');
+    document.getElementById('address').value = formatted;
+    return formatted;
+}
+
+function getProfilePayload() {
+    return {
+        first_name: document.getElementById('first_name').value.trim(),
+        last_name: document.getElementById('last_name').value.trim(),
+        phone: document.getElementById('phone').value.trim(),
+        address: buildAddressString(),
+        specialization: document.getElementById('specialization').value.trim(),
+        qualification: qualificationSelect.value === 'Others'
+            ? customQualificationInput.value.trim()
+            : document.getElementById('qualification').value,
+        experience_years: document.getElementById('experience_years').value,
+        consultation_fee: document.getElementById('consultation_fee').value,
+        bio: document.getElementById('bio').value.trim()
+    };
+}
+
+function toggleCustomQualification() {
+    const isOthers = qualificationSelect.value === 'Others';
+    customQualificationGroup.style.display = isOthers ? '' : 'none';
+    if (isOthers && isEditingProfile) {
+        customQualificationInput.removeAttribute('readonly');
+    } else {
+        customQualificationInput.setAttribute('readonly', 'readonly');
+    }
+}
+
+function cancelEdit() {
+    document.getElementById('first_name').value = originalProfileData.first_name || '';
+    document.getElementById('last_name').value = originalProfileData.last_name || '';
+    document.getElementById('phone').value = originalProfileData.phone || '';
+    document.getElementById('specialization').value = originalProfileData.specialization || '';
+    const origQualification = originalProfileData.qualification || '';
+    if (qualificationOptions.includes(origQualification)) {
+        qualificationSelect.value = origQualification;
+        customQualificationInput.value = '';
+    } else if (origQualification) {
+        qualificationSelect.value = 'Others';
+        customQualificationInput.value = origQualification;
+    } else {
+        qualificationSelect.value = qualificationOptions[0];
+        customQualificationInput.value = '';
+    }
+    document.getElementById('experience_years').value = originalProfileData.experience_years || 0;
+    document.getElementById('consultation_fee').value = originalProfileData.consultation_fee || 0;
+    document.getElementById('bio').value = originalProfileData.bio || '';
+    setAddressFieldsFromString(originalProfileData.address || '');
+    setEditMode(false);
+    toggleCustomQualification();
+}
+
+async function updateDoctorProfile(event) {
+    event.preventDefault();
+    const payload = getProfilePayload();
+
+    try {
+        const result = await API.put('/doctor/api/profile', payload);
+        if (result.success) {
+            originalProfileData = payload;
+            document.getElementById('userName').textContent = result.doctor.name || result.user.full_name;
+            document.getElementById('userAvatar').textContent = (result.user.first_name[0] + result.user.last_name[0]).toUpperCase();
+            Toast.success('Profile updated successfully');
+            setEditMode(false);
+        }
+    } catch (error) {
+        Toast.error(error.message || 'Failed to update profile');
+    }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,136 @@
+<!-- Reusable Dashboard Layout Template -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Dashboard{% endblock %} - Curonix</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/style.css">
+    <!-- Chart.js for analytics -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+<div class="dashboard-layout">
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-brand">
+            <img src="/static/images/site-logo.png" alt="Curonix Logo" class="brand-logo">
+            <div>
+                <h2>Curonix</h2>
+                <span class="subtitle">{% block panel_subtitle %}Hospital System{% endblock %}</span>
+            </div>
+        </div>
+        <nav class="sidebar-nav">
+            {% block sidebar_nav %}{% endblock %}
+        </nav>
+    </aside>
+    
+    <!-- Main Content -->
+    <div class="main-content">
+        <header class="top-header">
+            <div class="header-left">
+                <button type="button" class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar">☰</button>
+                <h1>{% block page_title %}Dashboard{% endblock %}</h1>
+            </div>
+            <div class="header-actions">
+                <div class="user-menu" onclick="goToProfile()" style="cursor:pointer;">
+                    <div class="user-avatar" id="userAvatar">
+                        {% if current_user.is_authenticated %}
+                            {{ (current_user.first_name[:1] ~ current_user.last_name[:1])|upper }}
+                        {% else %}
+                            U
+                        {% endif %}
+                    </div>
+                    <span id="userName" style="font-size:0.9rem; font-weight:500;">
+                        {% if current_user.is_authenticated %}
+                            {{ current_user.full_name }}
+                        {% else %}
+                            User
+                        {% endif %}
+                    </span>
+                    <span style="font-size:0.8rem; color:var(--gray-400);">▼</span>
+                </div>
+            </div>
+        </header>
+        
+        <div class="content-area">
+            {% block content %}{% endblock %}
+        </div>
+    </div>
+</div>
+
+<script>
+function updateSidebarToggleIcon() {
+    const sidebarToggle = document.getElementById('sidebarToggle');
+    if (!sidebarToggle) return;
+
+    const isMobile = window.innerWidth <= 1024;
+    const isOpen = isMobile
+        ? document.body.classList.contains('sidebar-open-mobile')
+        : !document.body.classList.contains('sidebar-collapsed');
+
+    sidebarToggle.textContent = isOpen ? '☘' : '☰';
+}
+
+function toggleSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    if (!sidebar) return;
+
+    const isMobile = window.innerWidth <= 1024;
+    if (isMobile) {
+        const willOpen = !document.body.classList.contains('sidebar-open-mobile');
+        document.body.classList.toggle('sidebar-open-mobile', willOpen);
+        sidebar.classList.toggle('open', willOpen);
+    } else {
+        document.body.classList.toggle('sidebar-collapsed');
+    }
+
+    updateSidebarToggleIcon();
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const sidebarToggle = document.getElementById('sidebarToggle');
+    const sidebar = document.getElementById('sidebar');
+
+    if (sidebarToggle) {
+        sidebarToggle.addEventListener('click', toggleSidebar);
+    }
+
+    if (window.innerWidth <= 1024 && sidebar) {
+        sidebar.classList.remove('open');
+        document.body.classList.remove('sidebar-open-mobile');
+    }
+
+    updateSidebarToggleIcon();
+});
+
+window.addEventListener('resize', function() {
+    const sidebar = document.getElementById('sidebar');
+    if (!sidebar) return;
+
+    if (window.innerWidth > 1024) {
+        sidebar.classList.remove('open');
+        document.body.classList.remove('sidebar-open-mobile');
+    }
+
+    updateSidebarToggleIcon();
+});
+
+function goToProfile() {
+    {% if current_user.is_authenticated and current_user.role == 'doctor' %}
+    window.location.href = '{{ url_for("doctor.profile_page") }}';
+    {% elif current_user.is_authenticated and current_user.role == 'patient' %}
+    window.location.href = '{{ url_for("patient.profile_page") }}';
+    {% elif current_user.is_authenticated and current_user.role == 'admin' %}
+    window.location.href = '{{ url_for("admin.profile_page") }}';
+    {% endif %}
+}
+</script>
+<script src="/static/js/app.js"></script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>

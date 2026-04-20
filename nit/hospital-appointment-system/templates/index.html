@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block title %}AI Hospital Appointment Scheduler{% endblock %}
+
+{% block body %}
+<!-- Navigation -->
+<nav class="landing-nav">
+    <div class="brand">
+        <img src="/static/images/site-logo.png" alt="Curonix Logo" class="logo-image">
+        <span>Curonix</span>
+    </div>
+    <div class="nav-links">
+        <a href="#features">Features</a>
+        <a href="#about">About</a>
+        <a href="/auth/login" class="btn btn-outline btn-sm">Login</a>
+        <a href="/auth/register" class="btn btn-primary btn-sm">Register</a>
+    </div>
+</nav>
+
+<!-- Hero Section -->
+<section class="hero-section">
+    <h1>AI-Powered Hospital Appointment Scheduling</h1>
+    <p>
+        Intelligent scheduling system that uses Constraint Satisfaction, 
+        Priority-Based Planning, and Machine Learning to optimize hospital 
+        appointments, reduce waiting times, and balance doctor workloads.
+    </p>
+    <div class="hero-buttons">
+        <a href="/auth/register" class="btn btn-primary btn-lg">
+            📋 Book Appointment
+        </a>
+        <a href="#features" class="btn btn-secondary btn-lg">
+            🔍 Learn More
+        </a>
+    </div>
+</section>
+
+<!-- Features Section -->
+<section class="features-section" id="features">
+    <h2>Powered by AI Planning Techniques</h2>
+    <div class="features-grid">
+        <div class="feature-card">
+            <div class="feature-icon" style="background:#eff6ff; color:#2563eb;">🤖</div>
+            <h3>AI-Based Scheduling</h3>
+            <p>Constraint Satisfaction Problem (CSP) solver ensures no overlapping 
+               appointments while optimizing slot allocation across all doctors.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon" style="background:#fef2f2; color:#dc2626;">🚨</div>
+            <h3>Priority Scheduling</h3>
+            <p>Automatic priority assignment: Emergency cases get immediate slots, 
+               senior citizens receive preference, and follow-ups are efficiently managed.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon" style="background:#ecfdf5; color:#059669;">⚖️</div>
+            <h3>Workload Balancing</h3>
+            <p>Min-heap algorithm distributes patients evenly across doctors, 
+               preventing overload and ensuring quality care for every patient.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon" style="background:#fffbeb; color:#d97706;">⏱️</div>
+            <h3>Wait Time Prediction</h3>
+            <p>Machine learning model trained on historical data predicts expected 
+               waiting times using weighted moving averages and peak-hour analysis.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon" style="background:#f0fdf4; color:#16a34a;">🔄</div>
+            <h3>Auto-Rescheduling</h3>
+            <p>When cancellations occur, the AI automatically redistributes 
+               appointments using greedy compaction to minimize gaps.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon" style="background:#faf5ff; color:#7c3aed;">📊</div>
+            <h3>Real-Time Analytics</h3>
+            <p>Comprehensive dashboards with peak-hour analysis, department statistics, 
+               and conflict detection for informed decision-making.</p>
+        </div>
+    </div>
+</section>
+
+<!-- About Section -->
+<section class="features-section" id="about" style="background: var(--gray-50);">
+    <h2>System Architecture</h2>
+    <div class="grid-3" style="max-width:900px; margin:0 auto;">
+        <div class="feature-card" style="text-align:center;">
+            <div class="feature-icon" style="background:#dbeafe; color:#2563eb; margin:0 auto 16px;">👨‍⚕️</div>
+            <h3>Patient Portal</h3>
+            <p>Book appointments, view schedules, manage profile, and receive AI-optimized slot suggestions.</p>
+        </div>
+        <div class="feature-card" style="text-align:center;">
+            <div class="feature-icon" style="background:#d1fae5; color:#059669; margin:0 auto 16px;">🩺</div>
+            <h3>Doctor Panel</h3>
+            <p>Manage daily schedule, mark availability, handle emergencies, and view patient history.</p>
+        </div>
+        <div class="feature-card" style="text-align:center;">
+            <div class="feature-icon" style="background:#fef3c7; color:#d97706; margin:0 auto 16px;">⚙️</div>
+            <h3>Admin Dashboard</h3>
+            <p>Add doctors, manage departments, monitor analytics, and perform emergency overrides.</p>
+        </div>
+    </div>
+</section>
+
+<!-- Footer -->
+<footer class="landing-footer">
+    <p>AI-Based Hospital Appointment Scheduling System | Capstone Project 2024-2026</p>
+    <p style="margin-top:8px; font-size:0.8rem;">
+        Built with Flask, MySQL, and AI Planning Techniques
+    </p>
+</footer>
+{% endblock %}

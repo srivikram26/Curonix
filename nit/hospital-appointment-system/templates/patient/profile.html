@@ -1,0 +1,334 @@
+{% extends "dashboard_base.html" %}
+
+{% block title %}My Profile{% endblock %}
+{% block panel_subtitle %}Patient Portal{% endblock %}
+{% block page_title %}My Profile{% endblock %}
+
+{% block sidebar_nav %}
+<div class="nav-section">
+    <div class="nav-section-title">Menu</div>
+    <a href="/patient/dashboard" class="nav-link"><span class="icon">📊</span> Dashboard</a>
+    <a href="/patient/book" class="nav-link"><span class="icon">📅</span> Book Appointment</a>
+    <a href="/patient/appointments" class="nav-link"><span class="icon">📋</span> My Appointments</a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="profile-card-wrapper">
+    <div class="card" style="max-width:700px;">
+        <div class="card-header"><h3>👤 Profile Information</h3></div>
+        <div class="card-body">
+        <form id="profileForm" onsubmit="updateProfile(event)">
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">First Name</label>
+                    <input type="text" id="first_name" class="form-input profile-editable" readonly>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Last Name</label>
+                    <input type="text" id="last_name" class="form-input profile-editable" readonly>
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Phone</label>
+                <input type="tel" id="phone" class="form-input profile-editable" 
+                       placeholder="+91 XXXXX XXXXX">
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Date of Birth</label>
+                    <input type="date" id="dob" class="form-input profile-editable">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Gender</label>
+                    <select id="gender" class="form-select profile-editable-select" disabled>
+                        <option value="">Select</option>
+                        <option value="male">Male</option>
+                        <option value="female">Female</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Age</label>
+                    <input type="text" id="age" class="form-input" readonly>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Blood Group</label>
+                    <select id="blood_group" class="form-select profile-editable-select" disabled>
+                        <option value="">Select blood group</option>
+                        <option value="A+">A+</option>
+                        <option value="A-">A-</option>
+                        <option value="B+">B+</option>
+                        <option value="B-">B-</option>
+                        <option value="AB+">AB+</option>
+                        <option value="AB-">AB-</option>
+                        <option value="O+">O+</option>
+                        <option value="O-">O-</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Address</label>
+                <div class="address-grid">
+                    <div class="form-group">
+                        <label class="form-label">Address Line 1</label>
+                        <input type="text" id="address_line1" class="form-input profile-editable" readonly
+                               placeholder="House/Flat No, Street">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Address Line 2 (Optional)</label>
+                        <input type="text" id="address_line2" class="form-input profile-editable" readonly
+                               placeholder="Area, Landmark">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">City</label>
+                        <input type="text" id="address_city" class="form-input profile-editable" readonly
+                               placeholder="City">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">State</label>
+                        <input type="text" id="address_state" class="form-input profile-editable" readonly
+                               placeholder="State">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Postal Code</label>
+                        <input type="text" id="address_postal" class="form-input profile-editable" readonly
+                               placeholder="ZIP / Postal Code">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Country</label>
+                        <input type="text" id="address_country" class="form-input profile-editable" readonly
+                               placeholder="Country">
+                    </div>
+                </div>
+                <input type="hidden" id="address">
+                <small class="form-hint">Use the structured address format to help hospital staff locate you faster.</small>
+            </div>
+            <div id="seniorBadge" class="hidden alert alert-info">
+                👴 You are registered as a <strong>Senior Citizen</strong> — you receive priority scheduling.
+            </div>
+            <div class="d-flex align-center" style="gap:12px;">
+                <button type="button" class="btn btn-secondary" id="editProfileBtn" onclick="setEditMode(true)">Edit Profile</button>
+                <button type="submit" class="btn btn-primary" id="saveProfileBtn" style="display:none;">Save Changes</button>
+                <button type="button" class="btn btn-secondary" id="cancelEditBtn" onclick="cancelEdit()" style="display:none;">Cancel</button>
+                <button type="button" class="btn btn-secondary" onclick="handleLogout()">Logout</button>
+            </div>
+        </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.form-hint {
+    display: block;
+    margin-top: 4px;
+    font-size: 0.8rem;
+    color: var(--gray-500, #6b7280);
+}
+
+.address-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px 16px;
+}
+
+@media (max-width: 768px) {
+    .address-grid {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let originalProfileData = {};
+
+document.addEventListener('DOMContentLoaded', async () => {
+    // Set date of birth constraints
+    const dobInput = document.getElementById('dob');
+    const today = new Date();
+    const maxDate = today.toISOString().split('T')[0];
+    const minYear = today.getFullYear() - 120;
+    const minDate = `${minYear}-01-01`;
+    dobInput.setAttribute('max', maxDate);
+    dobInput.setAttribute('min', minDate);
+    dobInput.addEventListener('change', updateAgeField);
+    
+    try {
+        const result = await API.get('/patient/api/dashboard-data');
+        if (result.success) {
+            const u = result.user;
+            document.getElementById('first_name').value = u.first_name || '';
+            document.getElementById('last_name').value = u.last_name || '';
+            document.getElementById('phone').value = u.phone || '';
+            document.getElementById('dob').value = u.date_of_birth || '';
+            document.getElementById('gender').value = u.gender || '';
+            setAddressFieldsFromString(u.address || '');
+            document.getElementById('blood_group').value = u.blood_group || '';
+            document.getElementById('userName').textContent = u.full_name;
+            const first = u.first_name || '';
+            const last = u.last_name || '';
+            document.getElementById('userAvatar').textContent = ((first[0] || '') + (last[0] || '')).toUpperCase() || 'P';
+            if (u.is_senior_citizen) document.getElementById('seniorBadge').classList.remove('hidden');
+
+            updateAgeField();
+
+            originalProfileData = getProfilePayload();
+            setEditMode(false);
+        }
+    } catch(e) { Toast.error('Failed to load profile'); }
+});
+
+function setEditMode(enabled) {
+        document.querySelectorAll('.profile-editable').forEach(field => {
+            if (enabled) {
+                field.removeAttribute('readonly');
+            } else {
+                field.setAttribute('readonly', 'readonly');
+            }
+        });
+
+    document.querySelectorAll('.profile-editable-select').forEach(select => {
+        select.disabled = !enabled;
+    });
+
+    document.getElementById('editProfileBtn').style.display = enabled ? 'none' : 'inline-flex';
+    document.getElementById('saveProfileBtn').style.display = enabled ? 'inline-flex' : 'none';
+    document.getElementById('cancelEditBtn').style.display = enabled ? 'inline-flex' : 'none';
+}
+
+function calculateAgeFromDOB(value) {
+    if (!value) return null;
+    const dob = new Date(value);
+    const today = new Date();
+    let age = today.getFullYear() - dob.getFullYear();
+    if (today.getMonth() < dob.getMonth() || (today.getMonth() === dob.getMonth() && today.getDate() < dob.getDate())) {
+        age -= 1;
+    }
+    return age >= 0 ? age : null;
+}
+
+function updateAgeField() {
+    const ageInput = document.getElementById('age');
+    if (!ageInput) return;
+    const ageValue = calculateAgeFromDOB(document.getElementById('dob').value);
+    ageInput.value = ageValue !== null ? `${ageValue} yrs` : '';
+}
+
+function setAddressFieldsFromString(addressValue) {
+    const raw = String(addressValue || '').trim();
+    const line1El = document.getElementById('address_line1');
+    const line2El = document.getElementById('address_line2');
+    const cityEl = document.getElementById('address_city');
+    const stateEl = document.getElementById('address_state');
+    const postalEl = document.getElementById('address_postal');
+    const countryEl = document.getElementById('address_country');
+
+    line1El.value = '';
+    line2El.value = '';
+    cityEl.value = '';
+    stateEl.value = '';
+    postalEl.value = '';
+    countryEl.value = '';
+
+    if (!raw) {
+        document.getElementById('address').value = '';
+        return;
+    }
+
+    const lines = raw.split('\n').map(part => part.trim()).filter(Boolean);
+
+    if (lines.length >= 3) {
+        line1El.value = lines[0] || '';
+
+        const lastLine = lines[lines.length - 1] || '';
+        const cityStatePostalLine = lines[lines.length - 2] || '';
+        const middleLines = lines.slice(1, -2);
+        line2El.value = middleLines.join(', ');
+
+        const cityStateParts = cityStatePostalLine.split(',').map(part => part.trim()).filter(Boolean);
+        cityEl.value = cityStateParts[0] || '';
+
+        const statePostal = cityStateParts[1] || '';
+        const statePostalMatch = statePostal.match(/^(.*?)(?:\s*-\s*|\s+)([A-Za-z0-9 -]{3,12})$/);
+        if (statePostalMatch) {
+            stateEl.value = statePostalMatch[1].trim();
+            postalEl.value = statePostalMatch[2].trim();
+        } else {
+            stateEl.value = statePostal;
+        }
+
+        countryEl.value = lastLine;
+    } else {
+        line1El.value = raw;
+    }
+
+    document.getElementById('address').value = raw;
+}
+
+function buildAddressString() {
+    const line1 = document.getElementById('address_line1').value.trim();
+    const line2 = document.getElementById('address_line2').value.trim();
+    const city = document.getElementById('address_city').value.trim();
+    const state = document.getElementById('address_state').value.trim();
+    const postal = document.getElementById('address_postal').value.trim();
+    const country = document.getElementById('address_country').value.trim();
+
+    const statePostal = [state, postal].filter(Boolean).join(' - ');
+    const cityStatePostal = [city, statePostal].filter(Boolean).join(', ');
+
+    const formatted = [line1, line2, cityStatePostal, country].filter(Boolean).join('\n');
+    document.getElementById('address').value = formatted;
+    return formatted;
+}
+
+function getProfilePayload() {
+    return {
+        first_name: document.getElementById('first_name').value.trim(),
+        last_name: document.getElementById('last_name').value.trim(),
+        phone: document.getElementById('phone').value.trim(),
+        date_of_birth: document.getElementById('dob').value,
+        gender: document.getElementById('gender').value,
+        blood_group: document.getElementById('blood_group').value,
+        address: buildAddressString()
+    };
+}
+
+function cancelEdit() {
+    document.getElementById('first_name').value = originalProfileData.first_name || '';
+    document.getElementById('last_name').value = originalProfileData.last_name || '';
+    document.getElementById('phone').value = originalProfileData.phone || '';
+    document.getElementById('dob').value = originalProfileData.date_of_birth || '';
+    document.getElementById('gender').value = originalProfileData.gender || '';
+    setAddressFieldsFromString(originalProfileData.address || '');
+    document.getElementById('blood_group').value = originalProfileData.blood_group || '';
+    setEditMode(false);
+    updateAgeField();
+}
+
+async function updateProfile(e) {
+    e.preventDefault();
+    try {
+        const payload = getProfilePayload();
+        const result = await API.put('/patient/api/profile', payload);
+        if (result.success) {
+            originalProfileData = payload;
+            if (result.user) {
+                document.getElementById('userName').textContent = result.user.full_name;
+                const first = result.user.first_name || '';
+                const last = result.user.last_name || '';
+                document.getElementById('userAvatar').textContent = ((first[0] || '') + (last[0] || '')).toUpperCase() || 'P';
+            }
+            Toast.success('Profile updated!');
+            setEditMode(false);
+            updateAgeField();
+        }
+    } catch(e) { Toast.error('Update failed'); }
+}
+</script>
+{% endblock %}

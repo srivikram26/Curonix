@@ -1,0 +1,251 @@
+{% extends "dashboard_base.html" %}
+{% block title %}All Appointments{% endblock %}
+{% block panel_subtitle %}Admin Panel{% endblock %}
+{% block page_title %}Appointment Management{% endblock %}
+
+{% block sidebar_nav %}
+<div class="nav-section">
+    <div class="nav-section-title">Management</div>
+    <a href="/admin/dashboard" class="nav-link"><span class="icon">📊</span> Dashboard</a>
+    <a href="/admin/doctors" class="nav-link"><span class="icon">👨‍⚕️</span> Doctors</a>
+    <a href="/admin/departments" class="nav-link"><span class="icon">🏥</span> Departments</a>
+    <a href="/admin/appointments" class="nav-link active"><span class="icon">📋</span> Appointments</a>
+    <a href="/admin/analytics" class="nav-link"><span class="icon">📈</span> AI Analytics</a>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.appointments-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+}
+
+.appointments-table th,
+.appointments-table td {
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--gray-100);
+    vertical-align: middle;
+}
+
+.appointments-table thead th {
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--gray-500);
+    background: var(--gray-50);
+}
+
+.appointments-table tbody tr:hover {
+    background: var(--gray-50);
+}
+
+.appointments-table .col-id,
+.appointments-table .col-patient,
+.appointments-table .col-doctor,
+.appointments-table .col-department,
+.appointments-table .id-cell,
+.appointments-table .patient-cell,
+.appointments-table .doctor-cell,
+.appointments-table .department-cell {
+    text-align: left;
+}
+
+.appointments-table .col-date,
+.appointments-table .col-time,
+.appointments-table .col-priority,
+.appointments-table .col-status,
+.appointments-table .col-score,
+.appointments-table .date-cell,
+.appointments-table .time-cell,
+.appointments-table .priority-cell,
+.appointments-table .status-cell,
+.appointments-table .score-cell {
+    text-align: center;
+}
+
+.appointments-table .date-cell,
+.appointments-table .time-cell,
+.appointments-table .priority-cell,
+.appointments-table .status-cell,
+.appointments-table .score-cell {
+    white-space: nowrap;
+}
+
+.appointments-table .date-cell,
+.appointments-table .time-cell {
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.01em;
+}
+
+.appointments-table .status-cell .badge,
+.appointments-table .priority-cell .badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.appointments-table .patient-cell,
+.appointments-table .doctor-cell,
+.appointments-table .department-cell {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.appointments-table .col-id { width: 7%; }
+.appointments-table .col-patient { width: 16%; }
+.appointments-table .col-doctor { width: 16%; }
+.appointments-table .col-department { width: 14%; }
+.appointments-table .col-date { width: 16%; }
+.appointments-table .col-time { width: 16%; }
+.appointments-table .col-priority { width: 11%; }
+.appointments-table .col-status { width: 10%; }
+.appointments-table .col-score { width: 8%; }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Filters -->
+<div class="card mb-24">
+    <div class="card-body">
+        <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:end;">
+            <div class="form-group" style="margin:0;">
+                <label class="form-label">Status</label>
+                <select id="filterStatus" class="form-input" style="width:150px;">
+                    <option value="">All</option>
+                    <option value="Scheduled">Scheduled</option>
+                    <option value="Confirmed">Confirmed</option>
+                    <option value="Completed">Completed</option>
+                    <option value="Cancelled">Cancelled</option>
+                    <option value="No-Show">No-Show</option>
+                </select>
+            </div>
+            <div class="form-group" style="margin:0;">
+                <label class="form-label">Date From</label>
+                <input type="date" id="filterFrom" class="form-input" style="width:160px;">
+            </div>
+            <div class="form-group" style="margin:0;">
+                <label class="form-label">Date To</label>
+                <input type="date" id="filterTo" class="form-input" style="width:160px;">
+            </div>
+            <button class="btn btn-primary" onclick="loadAppointments()">Filter</button>
+            <button class="btn btn-outline" onclick="resetFilters()">Reset</button>
+        </div>
+    </div>
+</div>
+
+<!-- Results -->
+<div class="card">
+    <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
+        <h3>📋 Appointments</h3>
+        <span id="countLabel" style="color:var(--gray-500);"></span>
+    </div>
+    <div class="card-body">
+        <div class="table-container">
+            <table class="table appointments-table">
+                <thead>
+                    <tr>
+                        <th class="col-id">ID</th><th class="col-patient">Patient</th><th class="col-doctor">Doctor</th><th class="col-department">Department</th>
+                        <th class="col-date">Date</th><th class="col-time">Time</th><th class="col-priority">Priority</th><th class="col-status">Status</th><th class="col-score">AI Score</th>
+                    </tr>
+                </thead>
+                <tbody id="apptTableBody">
+                    <tr><td colspan="9" class="text-center">Loading...</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <!-- Pagination -->
+        <div id="pagination" style="display:flex; justify-content:center; gap:8px; margin-top:16px;"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentPage = 1;
+
+document.addEventListener('DOMContentLoaded', loadAppointments);
+
+async function loadAppointments(page = 1) {
+    currentPage = page;
+    const status = document.getElementById('filterStatus').value;
+    const from = document.getElementById('filterFrom').value;
+    const to = document.getElementById('filterTo').value;
+    
+    const normalizedStatus = status ? status.toLowerCase() : '';
+    let url = `/admin/api/all-appointments?page=${page}&per_page=15`;
+    if (normalizedStatus) url += `&status=${normalizedStatus}`;
+    if (from) url += `&date_from=${from}`;
+    if (to) url += `&date_to=${to}`;
+    
+    try {
+        const data = await API.get(url);
+        const appts = data.success ? data.appointments : [];
+        const total = data.total || 0;
+        
+        document.getElementById('countLabel').textContent = `${total} total`;
+        const tbody = document.getElementById('apptTableBody');
+        
+        if (!appts.length) { tbody.innerHTML = '<tr><td colspan="9" class="text-center">No appointments found</td></tr>'; return; }
+        
+        tbody.innerHTML = appts.map(a => `
+            <tr>
+                <td class="id-cell">#${a.id}</td>
+                <td class="patient-cell">${a.patient_name || 'N/A'}</td>
+                <td class="doctor-cell">${a.doctor_name || 'N/A'}</td>
+                <td class="department-cell">${a.department || '-'}</td>
+                <td class="date-cell">${Utils.formatDate(a.appointment_date)}</td>
+                <td class="time-cell">${a.start_time || ''} - ${a.end_time || ''}</td>
+                <td class="priority-cell">${renderPriorityBadge(a.priority)}</td>
+                <td class="status-cell"><span class="${Utils.statusBadge(a.status)}">${a.status || '-'}</span></td>
+                <td class="score-cell">${a.ai_priority_score != null ? a.ai_priority_score.toFixed(1) : '-'}</td>
+            </tr>
+        `).join('');
+
+        renderPagination(total, 15, page);
+    } catch(e) { console.error(e); }
+}
+
+function renderPagination(total, perPage, current) {
+    const pages = Math.ceil(total / perPage);
+    const container = document.getElementById('pagination');
+    if (pages <= 1) { container.innerHTML = ''; return; }
+    
+    let html = '';
+    if (current > 1) html += `<button class="btn btn-sm btn-outline" onclick="loadAppointments(${current-1})">Prev</button>`;
+    
+    for (let i = 1; i <= pages; i++) {
+        if (i === current) html += `<button class="btn btn-sm btn-primary">${i}</button>`;
+        else if (i <= 3 || i > pages-2 || Math.abs(i-current) <= 1) html += `<button class="btn btn-sm btn-outline" onclick="loadAppointments(${i})">${i}</button>`;
+        else if (i === 4 || i === pages-2) html += '<span>...</span>';
+    }
+    
+    if (current < pages) html += `<button class="btn btn-sm btn-outline" onclick="loadAppointments(${current+1})">Next</button>`;
+    container.innerHTML = html;
+}
+
+function renderPriorityBadge(priority) {
+    const normalized = (priority || 'normal').toLowerCase();
+    let label = priority || 'Normal';
+    switch (normalized) {
+        case 'emergency':
+            return `<span class="badge badge-danger">Emergency</span>`;
+        case 'senior_citizen':
+            return `<span class="badge badge-warning">Senior Citizen</span>`;
+        case 'follow_up':
+            return `<span class="badge badge-info">Follow Up</span>`;
+        default:
+            return `<span class="badge badge-info">${label}</span>`;
+    }
+}
+
+function resetFilters() {
+    document.getElementById('filterStatus').value = '';
+    document.getElementById('filterFrom').value = '';
+    document.getElementById('filterTo').value = '';
+    loadAppointments(1);
+}
+</script>
+{% endblock %}

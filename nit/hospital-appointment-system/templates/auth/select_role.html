@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block title %}Select Role - AI Hospital Scheduler{% endblock %}
+
+{% block body %}
+<div class="auth-page">
+    <div class="auth-container" style="max-width: 500px;">
+        <div class="auth-logo">
+            <img src="/static/images/site-logo.png" alt="Curonix Logo" class="logo-image">
+            <h1>Welcome to Curonix</h1>
+            <p>Please select your role to continue</p>
+        </div>
+        
+        <div class="role-selection">
+            <a href="{{ url_for('auth.register_page', role='patient') }}" class="role-card">
+                <div class="role-icon" style="background: #dbeafe; color: #2563eb;">👤</div>
+                <div class="role-info">
+                    <h3>Patient</h3>
+                    <p>Book appointments and manage your health records</p>
+                </div>
+                <div class="role-arrow">→</div>
+            </a>
+            
+            <a href="{{ url_for('auth.verify_doctor_page') }}" class="role-card">
+                <div class="role-icon" style="background: #d1fae5; color: #059669;">🩺</div>
+                <div class="role-info">
+                    <h3>Doctor</h3>
+                    <p>Manage your schedule and patient appointments</p>
+                </div>
+                <div class="role-arrow">→</div>
+            </a>
+            
+            <a href="{{ url_for('auth.register_page', role='admin') }}" class="role-card">
+                <div class="role-icon" style="background: #fef3c7; color: #d97706;">⚙️</div>
+                <div class="role-info">
+                    <h3>Admin</h3>
+                    <p>Manage hospital departments and staff</p>
+                </div>
+                <div class="role-arrow">→</div>
+            </a>
+        </div>
+        
+        <div class="auth-footer">
+            Already have an account?<br>
+            <a href="{{ url_for('auth.login_page', role='patient') }}">Sign in as Patient</a> | 
+            <a href="{{ url_for('auth.login_page', role='doctor') }}">Sign in as Doctor</a> | 
+            <a href="{{ url_for('auth.login_page', role='admin') }}">Sign in as Admin</a>
+        </div>
+    </div>
+</div>
+
+<style>
+.role-selection {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin: 30px 0;
+}
+
+.role-card {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 20px;
+    background: #f8fafc;
+    border: 2px solid #e2e8f0;
+    border-radius: 12px;
+    text-decoration: none;
+    color: inherit;
+    transition: all 0.3s ease;
+}
+
+.role-card:hover {
+    border-color: #667eea;
+    background: #f8fafc;
+    transform: none;
+    box-shadow: none;
+}
+
+.role-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    flex-shrink: 0;
+}
+
+.role-info {
+    flex: 1;
+}
+
+.role-info h3 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #1e293b;
+    margin-bottom: 4px;
+}
+
+.role-info p {
+    font-size: 0.85rem;
+    color: #64748b;
+    margin: 0;
+}
+
+.role-arrow {
+    font-size: 1.5rem;
+    color: #94a3b8;
+    transition: all 0.3s ease;
+}
+
+.role-card:hover .role-arrow {
+    color: #94a3b8;
+    transform: none;
+}
+</style>
+{% endblock %}

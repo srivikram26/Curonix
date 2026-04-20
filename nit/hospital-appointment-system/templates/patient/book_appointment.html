@@ -1,0 +1,346 @@
+{% extends "dashboard_base.html" %}
+
+{% block title %}Book Appointment{% endblock %}
+{% block panel_subtitle %}Patient Portal{% endblock %}
+{% block page_title %}Book Appointment{% endblock %}
+
+{% block sidebar_nav %}
+<div class="nav-section">
+    <div class="nav-section-title">Menu</div>
+    <a href="/patient/dashboard" class="nav-link"><span class="icon">📊</span> Dashboard</a>
+    <a href="/patient/book" class="nav-link active"><span class="icon">📅</span> Book Appointment</a>
+    <a href="/patient/appointments" class="nav-link"><span class="icon">📋</span> My Appointments</a>
+</div>
+{% endblock %}
+
+{% block content %}
+<!-- AI Scheduling Info Banner -->
+<div class="alert alert-info mb-24">
+    🤖 <strong>AI-Powered Scheduling:</strong> Our system uses Constraint Satisfaction and Priority-Based 
+    Planning to find the optimal time slot. Emergency cases and senior citizens receive automatic priority.
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h3>📅 Schedule New Appointment</h3>
+    </div>
+    <div class="card-body">
+        <form id="bookingForm" onsubmit="submitBooking(event)">
+            <!-- Step 1: Department Selection -->
+            <div class="form-group">
+                <label class="form-label">Select Department *</label>
+                <select id="department" class="form-select" required onchange="loadDoctors()">
+                    <option value="">-- Choose Department --</option>
+                </select>
+            </div>
+            
+            <!-- Step 2: Doctor Selection -->
+            <div class="form-group">
+                <label class="form-label">Select Doctor (optional - AI will optimize if left blank)</label>
+                <select id="doctor" class="form-select">
+                    <option value="">-- AI Auto-Select (Recommended) --</option>
+                </select>
+                <div class="form-help">💡 Let AI choose the best doctor based on workload balancing</div>
+            </div>
+
+            
+            <!-- Step 3: Date & Time -->
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Preferred Date *</label>
+                    <input type="date" id="apptDate" class="form-input" required onchange="loadSlots()">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Appointment Type *</label>
+                    <select id="apptType" class="form-select" required>
+                        <option value="new">New Consultation</option>
+                        <option value="follow_up">Follow-up Visit</option>
+                        <option value="emergency">Emergency</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Step 4: Time Slots -->
+            <div class="form-group" id="slotsSection">
+                <label class="form-label">Available Time Slots <span id="slotOptionalText" class="text-muted">(or let AI choose)</span></label>
+                <div id="slotsContainer">
+                    <div class="text-muted text-sm">Select a department and date to see available slots</div>
+                </div>
+                <input type="hidden" id="selectedTime">
+                <input type="hidden" id="selectedDoctorId">
+            </div>
+            
+            <!-- AI Auto-Select Option -->
+            <div class="form-group">
+                <label class="form-check">
+                    <input type="checkbox" id="aiAutoSelect" class="form-check-input" checked>
+                    <span class="form-check-label">🤖 Let AI automatically select the best time slot</span>
+                </label>
+                <div class="form-help">AI will analyze doctor workload, wait times, and your preferences to find the optimal slot</div>
+            </div>
+            
+            <!-- Step 5: Symptoms & Notes -->
+            <div class="form-group">
+                <label class="form-label">Describe Symptoms</label>
+                <textarea id="symptoms" class="form-textarea" placeholder="Briefly describe your symptoms or reason for visit..."></textarea>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Additional Notes</label>
+                <textarea id="notes" class="form-textarea" rows="2" placeholder="Any additional information for the doctor..."></textarea>
+            </div>
+            
+            <button type="submit" class="btn btn-primary btn-lg w-full" id="bookBtn">
+                🤖 Schedule with AI
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- Booking Result Modal -->
+<div class="modal-overlay" id="resultModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>✅ Appointment Scheduled</h3>
+            <button class="modal-close" onclick="Modal.hide('#resultModal')">&times;</button>
+        </div>
+        <div class="modal-body" id="resultBody"></div>
+        <div class="modal-footer">
+            <a href="/patient/appointments" class="btn btn-primary">View My Appointments</a>
+            <button class="btn btn-secondary" onclick="Modal.hide('#resultModal')">Close</button>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let availableSlots = [];
+
+// Load departments on page load
+document.addEventListener('DOMContentLoaded', async () => {
+    try {
+        const result = await API.get('/patient/api/departments');
+        if (result.success) {
+            const select = document.getElementById('department');
+            result.departments.forEach(dept => {
+                select.innerHTML += '<option value="' + dept.id + '">' + dept.name + '</option>';
+            });
+        }
+        
+        // Set minimum date to today
+        document.getElementById('apptDate').min = Utils.today();
+        
+        // Handle AI auto-select toggle
+        const aiCheckbox = document.getElementById('aiAutoSelect');
+        aiCheckbox.addEventListener('change', function() {
+            updateSlotsSectionVisibility();
+        });
+        updateSlotsSectionVisibility();
+    } catch (error) {
+        Toast.error('Failed to load departments');
+    }
+});
+
+function updateSlotsSectionVisibility() {
+    const aiAutoSelect = document.getElementById('aiAutoSelect').checked;
+    const slotsSection = document.getElementById('slotsSection');
+    const slotOptionalText = document.getElementById('slotOptionalText');
+    
+    if (aiAutoSelect) {
+        slotsSection.style.opacity = '0.5';
+        slotOptionalText.textContent = '(AI will auto-select optimal slot)';
+    } else {
+        slotsSection.style.opacity = '1';
+        slotOptionalText.textContent = '(required)';
+    }
+}
+
+// Load doctors when department changes
+async function loadDoctors() {
+    const deptId = document.getElementById('department').value;
+    const select = document.getElementById('doctor');
+    select.innerHTML = '<option value="">-- AI Auto-Select (Recommended) --</option>';
+    
+    if (!deptId) return;
+    
+    try {
+        const result = await API.get('/patient/api/doctors/' + deptId);
+        if (result.success) {
+            result.doctors.forEach(doc => {
+                select.innerHTML += '<option value="' + doc.id + '">' + doc.name + ' - ' + doc.specialization + '</option>';
+            });
+        }
+        loadSlots();
+    } catch (error) {
+        Toast.error('Failed to load doctors');
+    }
+}
+
+// Load available time slots
+async function loadSlots() {
+    const deptId = document.getElementById('department').value;
+    const dateStr = document.getElementById('apptDate').value;
+    const doctorId = document.getElementById('doctor').value;
+    
+    if (!deptId || !dateStr) {
+        document.getElementById('slotsContainer').innerHTML = 
+            '<div class="text-muted text-sm">Select a department and date to see available slots</div>';
+        return;
+    }
+    
+    document.getElementById('slotsContainer').innerHTML = 
+        '<div class="loading-overlay" style="padding:20px;"><div class="spinner"></div><span>Finding optimal slots...</span></div>';
+    
+    try {
+        const result = await API.post('/patient/api/available-slots', {
+            department_id: parseInt(deptId),
+            date: dateStr,
+            doctor_id: doctorId ? parseInt(doctorId) : null
+        });
+        
+        if (result.success) {
+            availableSlots = result.slots;
+            renderSlots(result.slots);
+        }
+    } catch (error) {
+        document.getElementById('slotsContainer').innerHTML = 
+            '<div class="alert alert-danger">No slots available: ' + error.message + '</div>';
+    }
+}
+
+function renderSlots(slots) {
+    const container = document.getElementById('slotsContainer');
+    
+    if (!slots || slots.length === 0) {
+        container.innerHTML = '<div class="alert alert-warning">No slots for this date. Try a different date or let the AI select a doctor.</div>';
+        return;
+    }
+    
+    // Count available slots
+    const availableCount = slots.filter(function(s) { return s.is_available !== false; }).length;
+    const bookedCount = slots.length - availableCount;
+    
+    let slotsHTML = '<div class="text-sm text-muted mb-8">' + availableCount + ' slots available';
+    if (bookedCount > 0) {
+        slotsHTML += ' <span style="color:var(--danger);">(' + bookedCount + ' booked)</span>';
+    }
+    slotsHTML += '</div>';
+    slotsHTML += '<div class="slots-grid">';
+    slots.forEach(function(slot, i) {
+        const isBooked = slot.is_available === false || slot.status === 'booked';
+        const btnClass = isBooked ? 'slot-btn slot-booked' : 'slot-btn';
+        const disabledAttr = isBooked ? ' disabled' : '';
+        const onclickAttr = isBooked ? '' : ' onclick="selectSlot(' + i + ')"';
+        
+        slotsHTML += '<button type="button" class="' + btnClass + '"' + onclickAttr + disabledAttr + ' data-time="' + slot.start_time + '" data-doctor="' + slot.doctor_id + '">';
+        slotsHTML += '<div style="font-weight:600;">' + Utils.formatTime(slot.start_time) + '</div>';
+        if (isBooked) {
+            slotsHTML += '<div class="text-xs" style="color:var(--danger);">Booked</div>';
+        } else {
+            slotsHTML += '<div class="text-xs text-muted">' + (slot.doctor_name || 'Available') + '</div>';
+        }
+        slotsHTML += '</button>';
+    });
+    slotsHTML += '</div>';
+    container.innerHTML = slotsHTML;
+}
+
+function selectSlot(index) {
+    const slot = availableSlots[index];
+    
+    // Prevent selecting booked slots
+    if (slot.is_available === false || slot.status === 'booked') {
+        Toast.error('This slot is already booked');
+        return;
+    }
+    
+    // Deselect all, select this one
+    document.querySelectorAll('.slot-btn').forEach(function(b) { b.classList.remove('selected'); });
+    document.querySelectorAll('.slot-btn')[index].classList.add('selected');
+    
+    document.getElementById('selectedTime').value = slot.start_time;
+    document.getElementById('selectedDoctorId').value = slot.doctor_id;
+    
+}
+
+async function submitBooking(event) {
+    event.preventDefault();
+    
+    const aiAutoSelect = document.getElementById('aiAutoSelect').checked;
+    const selectedTime = document.getElementById('selectedTime').value;
+    
+    // If AI auto-select is disabled, require manual slot selection
+    if (!aiAutoSelect && !selectedTime) {
+        Toast.error('Please select a time slot or enable AI auto-selection');
+        return;
+    }
+    
+    const deptId = document.getElementById('department').value;
+    const apptDate = document.getElementById('apptDate').value;
+    
+    if (!deptId || !apptDate) {
+        Toast.error('Please select department and date');
+        return;
+    }
+    
+    const btn = document.getElementById('bookBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner" style="width:16px;height:16px;margin-right:8px;"></span> AI is analyzing and scheduling...';
+
+    const doctorId = aiAutoSelect ? null : (document.getElementById('selectedDoctorId').value || document.getElementById('doctor').value || null);
+    
+    const data = {
+        department_id: parseInt(deptId),
+        doctor_id: doctorId,
+        date: apptDate,
+        time: aiAutoSelect ? null : selectedTime,  // Let AI pick if auto-select enabled
+        ai_auto_select: aiAutoSelect,
+        appointment_type: document.getElementById('apptType').value,
+        symptoms: document.getElementById('symptoms').value,
+        notes: document.getElementById('notes').value
+    };
+    
+    try {
+        const result = await API.post('/patient/api/book', data);
+        
+        if (result.success) {
+            const appt = result.appointment;
+            const ai = result.ai_metadata;
+            
+            let aiRecommendationHTML = '';
+            if (aiAutoSelect) {
+                aiRecommendationHTML = '<div class="alert alert-info mb-16">🤖 <strong>AI Recommendation:</strong> Based on doctor workload analysis and wait time predictions, this slot was selected as optimal for you.</div>';
+            }
+
+            let locationHTML = '';
+            if (ai && ai.hospital_location) {
+                locationHTML = '<tr><td style="padding:8px; color:var(--gray-500);">Hospital Branch</td><td style="padding:8px;">' + ai.hospital_location + (ai.distance_km !== null && ai.distance_km !== undefined ? ' <span class="text-muted">(' + ai.distance_km + ' km from you)</span>' : '') + '</td></tr>';
+            }
+            
+            document.getElementById('resultBody').innerHTML = aiRecommendationHTML + 
+                '<div class="alert alert-success">Appointment successfully scheduled by AI!</div>' +
+                '<table style="width:100%; font-size:0.9rem;">' +
+                '<tr><td style="padding:8px; color:var(--gray-500);">Doctor</td><td style="padding:8px; font-weight:600;">' + appt.doctor_name + '</td></tr>' +
+                '<tr><td style="padding:8px; color:var(--gray-500);">Department</td><td style="padding:8px;">' + appt.department + '</td></tr>' +
+                locationHTML +
+                '<tr><td style="padding:8px; color:var(--gray-500);">Date</td><td style="padding:8px;">' + Utils.formatDate(appt.appointment_date) + '</td></tr>' +
+                '<tr><td style="padding:8px; color:var(--gray-500);">Time</td><td style="padding:8px;">' + Utils.formatTime(appt.start_time) + ' - ' + Utils.formatTime(appt.end_time) + '</td></tr>' +
+                '<tr><td style="padding:8px; color:var(--gray-500);">Priority</td><td style="padding:8px;"><span class="' + Utils.priorityBadge(appt.priority) + '">' + appt.priority + '</span></td></tr>' +
+                '<tr><td style="padding:8px; color:var(--gray-500);">AI Priority Score</td><td style="padding:8px;">' + ai.priority_score + '</td></tr>' +
+                '<tr><td style="padding:8px; color:var(--gray-500);">Doctor Workload</td><td style="padding:8px;">' + (ai.doctor_workload_ratio * 100).toFixed(0) + '%</td></tr>' +
+                '</table>';
+            
+            Modal.show('#resultModal');
+            Toast.success('Appointment booked successfully!');
+        }
+    } catch (error) {
+        Toast.error(error.message || 'Failed to book appointment');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '🤖 Schedule with AI';
+    }
+}
+</script>
+{% endblock %}

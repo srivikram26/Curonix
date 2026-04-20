@@ -1,0 +1,292 @@
+{% extends "dashboard_base.html" %}
+
+{% block title %}Admin Profile{% endblock %}
+{% block panel_subtitle %}Admin Panel{% endblock %}
+{% block page_title %}My Profile{% endblock %}
+
+{% block sidebar_nav %}
+<div class="nav-section">
+    <div class="nav-section-title">Management</div>
+    <a href="/admin/dashboard" class="nav-link"><span class="icon">📊</span> Dashboard</a>
+    <a href="/admin/doctors" class="nav-link"><span class="icon">👨‍⚕️</span> Doctors</a>
+    <a href="/admin/departments" class="nav-link"><span class="icon">🏥</span> Departments</a>
+    <a href="/admin/appointments" class="nav-link"><span class="icon">📋</span> Appointments</a>
+    <a href="/admin/analytics" class="nav-link"><span class="icon">📈</span> AI Analytics</a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="profile-card-wrapper">
+    <div class="card" style="max-width:700px;">
+        <div class="card-header"><h3>👤 Admin Details</h3></div>
+        <div class="card-body">
+        <form id="adminProfileForm" onsubmit="updateAdminProfile(event)">
+        <div class="form-row">
+            <div class="form-group">
+                <label class="form-label">First Name</label>
+                <input type="text" id="first_name" class="form-input profile-editable" value="{{ current_user.first_name }}" readonly>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Last Name</label>
+                <input type="text" id="last_name" class="form-input profile-editable" value="{{ current_user.last_name }}" readonly>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">Email</label>
+            <input type="text" class="form-input" value="{{ current_user.email }}" readonly>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label class="form-label">Phone</label>
+                <input type="text" id="phone" class="form-input profile-editable" value="{{ current_user.phone or '' }}" readonly>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Role</label>
+                <input type="text" class="form-input" value="{{ current_user.role|capitalize }}" readonly>
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label class="form-label">Date of Birth</label>
+                <input type="date" id="date_of_birth" class="form-input profile-editable" value="{{ current_user.date_of_birth.isoformat() if current_user.date_of_birth else '' }}" readonly>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Gender</label>
+                <select id="gender" class="form-select profile-editable-select" disabled>
+                    <option value="">Select</option>
+                    <option value="male" {% if current_user.gender == 'male' %}selected{% endif %}>Male</option>
+                    <option value="female" {% if current_user.gender == 'female' %}selected{% endif %}>Female</option>
+                    <option value="other" {% if current_user.gender == 'other' %}selected{% endif %}>Other</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">Address</label>
+            <div class="address-grid">
+                <div class="form-group">
+                    <label class="form-label">Address Line 1</label>
+                    <input type="text" id="address_line1" class="form-input profile-editable" readonly
+                           placeholder="House/Flat No, Street">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Address Line 2 (Optional)</label>
+                    <input type="text" id="address_line2" class="form-input profile-editable" readonly
+                           placeholder="Area, Landmark">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">City</label>
+                    <input type="text" id="address_city" class="form-input profile-editable" readonly
+                           placeholder="City">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">State</label>
+                    <input type="text" id="address_state" class="form-input profile-editable" readonly
+                           placeholder="State">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Postal Code</label>
+                    <input type="text" id="address_postal" class="form-input profile-editable" readonly
+                           placeholder="ZIP / Postal Code">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Country</label>
+                    <input type="text" id="address_country" class="form-input profile-editable" readonly
+                           placeholder="Country">
+                </div>
+            </div>
+            <input type="hidden" id="address">
+            <small class="form-hint">Use the structured address format to help hospital staff locate you faster.</small>
+        </div>
+
+        <div class="d-flex align-center" style="gap:12px;">
+            <button type="button" class="btn btn-secondary" id="editProfileBtn" onclick="setEditMode(true)">Edit Profile</button>
+            <button type="submit" class="btn btn-primary" id="saveProfileBtn" style="display:none;">Save Changes</button>
+            <button type="button" class="btn btn-secondary" id="cancelEditBtn" onclick="cancelEdit()" style="display:none;">Cancel</button>
+            <button type="button" class="btn btn-secondary" onclick="handleLogout()">Logout</button>
+        </div>
+        </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.form-hint {
+    display: block;
+    margin-top: 4px;
+    font-size: 0.8rem;
+    color: var(--gray-500, #6b7280);
+}
+
+.address-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px 16px;
+}
+
+@media (max-width: 768px) {
+    .address-grid {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let originalProfileData = {};
+const initialAddress = {{ (current_user.address or '') | tojson }};
+
+document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('userName').textContent = '{{ current_user.full_name }}';
+    const first = '{{ current_user.first_name or "" }}';
+    const last = '{{ current_user.last_name or "" }}';
+    document.getElementById('userAvatar').textContent = (first.charAt(0) + last.charAt(0)).toUpperCase() || 'A';
+
+    const dobInput = document.getElementById('date_of_birth');
+    const today = new Date();
+    const maxDate = today.toISOString().split('T')[0];
+    const minYear = today.getFullYear() - 120;
+    const minDate = `${minYear}-01-01`;
+    dobInput.setAttribute('max', maxDate);
+    dobInput.setAttribute('min', minDate);
+
+    setAddressFieldsFromString(initialAddress);
+
+    originalProfileData = getProfilePayload();
+    setEditMode(false);
+});
+
+function setEditMode(enabled) {
+    document.querySelectorAll('.profile-editable').forEach(field => {
+        if (enabled) {
+            field.removeAttribute('readonly');
+        } else {
+            field.setAttribute('readonly', 'readonly');
+        }
+    });
+
+    const genderField = document.getElementById('gender');
+    genderField.disabled = !enabled;
+
+    document.getElementById('editProfileBtn').style.display = enabled ? 'none' : 'inline-flex';
+    document.getElementById('saveProfileBtn').style.display = enabled ? 'inline-flex' : 'none';
+    document.getElementById('cancelEditBtn').style.display = enabled ? 'inline-flex' : 'none';
+}
+
+function setAddressFieldsFromString(addressValue) {
+    const raw = String(addressValue || '').trim();
+    const line1El = document.getElementById('address_line1');
+    const line2El = document.getElementById('address_line2');
+    const cityEl = document.getElementById('address_city');
+    const stateEl = document.getElementById('address_state');
+    const postalEl = document.getElementById('address_postal');
+    const countryEl = document.getElementById('address_country');
+
+    line1El.value = '';
+    line2El.value = '';
+    cityEl.value = '';
+    stateEl.value = '';
+    postalEl.value = '';
+    countryEl.value = '';
+
+    if (!raw) {
+        document.getElementById('address').value = '';
+        return;
+    }
+
+    const lines = raw.split('\n').map(part => part.trim()).filter(Boolean);
+
+    if (lines.length >= 3) {
+        line1El.value = lines[0] || '';
+
+        const lastLine = lines[lines.length - 1] || '';
+        const cityStatePostalLine = lines[lines.length - 2] || '';
+        const middleLines = lines.slice(1, -2);
+        line2El.value = middleLines.join(', ');
+
+        const cityStateParts = cityStatePostalLine.split(',').map(part => part.trim()).filter(Boolean);
+        cityEl.value = cityStateParts[0] || '';
+
+        const statePostal = cityStateParts[1] || '';
+        const statePostalMatch = statePostal.match(/^(.*?)(?:\s*-\s*|\s+)([A-Za-z0-9 -]{3,12})$/);
+        if (statePostalMatch) {
+            stateEl.value = statePostalMatch[1].trim();
+            postalEl.value = statePostalMatch[2].trim();
+        } else {
+            stateEl.value = statePostal;
+        }
+
+        countryEl.value = lastLine;
+    } else {
+        line1El.value = raw;
+    }
+
+    document.getElementById('address').value = raw;
+}
+
+function buildAddressString() {
+    const line1 = document.getElementById('address_line1').value.trim();
+    const line2 = document.getElementById('address_line2').value.trim();
+    const city = document.getElementById('address_city').value.trim();
+    const state = document.getElementById('address_state').value.trim();
+    const postal = document.getElementById('address_postal').value.trim();
+    const country = document.getElementById('address_country').value.trim();
+
+    const statePostal = [state, postal].filter(Boolean).join(' - ');
+    const cityStatePostal = [city, statePostal].filter(Boolean).join(', ');
+
+    const formatted = [line1, line2, cityStatePostal, country].filter(Boolean).join('\n');
+    document.getElementById('address').value = formatted;
+    return formatted;
+}
+
+function getProfilePayload() {
+    return {
+        first_name: document.getElementById('first_name').value.trim(),
+        last_name: document.getElementById('last_name').value.trim(),
+        phone: document.getElementById('phone').value.trim(),
+        date_of_birth: document.getElementById('date_of_birth').value,
+        gender: document.getElementById('gender').value,
+        address: buildAddressString()
+    };
+}
+
+function cancelEdit() {
+    document.getElementById('first_name').value = originalProfileData.first_name || '';
+    document.getElementById('last_name').value = originalProfileData.last_name || '';
+    document.getElementById('phone').value = originalProfileData.phone || '';
+    document.getElementById('date_of_birth').value = originalProfileData.date_of_birth || '';
+    document.getElementById('gender').value = originalProfileData.gender || '';
+    setAddressFieldsFromString(originalProfileData.address || '');
+    setEditMode(false);
+}
+
+async function updateAdminProfile(event) {
+    event.preventDefault();
+
+    try {
+        const payload = getProfilePayload();
+        const result = await API.put('/admin/api/profile', payload);
+        if (result.success) {
+            originalProfileData = payload;
+            if (result.user) {
+                document.getElementById('userName').textContent = result.user.full_name;
+                const first = result.user.first_name || '';
+                const last = result.user.last_name || '';
+                document.getElementById('userAvatar').textContent = ((first[0] || '') + (last[0] || '')).toUpperCase() || 'A';
+            }
+            Toast.success('Profile updated successfully');
+            setEditMode(false);
+        }
+    } catch (error) {
+        Toast.error(error.message || 'Failed to update profile');
+    }
+}
+</script>
+{% endblock %}

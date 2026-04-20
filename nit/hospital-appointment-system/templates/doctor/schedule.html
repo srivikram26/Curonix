@@ -1,0 +1,70 @@
+{% extends "dashboard_base.html" %}
+{% block title %}My Schedule{% endblock %}
+{% block panel_subtitle %}Doctor Panel{% endblock %}
+{% block page_title %}Weekly Schedule{% endblock %}
+
+{% block sidebar_nav %}
+<div class="nav-section">
+    <div class="nav-section-title">Menu</div>
+    <a href="/doctor/dashboard" class="nav-link"><span class="icon">📊</span> Dashboard</a>
+    <a href="/doctor/schedule" class="nav-link active"><span class="icon">📅</span> My Schedule</a>
+    <a href="/doctor/availability" class="nav-link"><span class="icon">⏰</span> Availability</a>
+    <a href="/doctor/patients" class="nav-link"><span class="icon">👥</span> Patient History</a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="card mb-24">
+    <div class="card-body d-flex align-center gap-16">
+        <label class="form-label" style="margin:0;">Date:</label>
+        <input type="date" id="schedDate" class="form-input" style="width:200px;" onchange="loadSchedule()">
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header"><h3>📅 Schedule</h3></div>
+    <div class="table-container">
+        <table class="data-table">
+            <thead>
+                <tr><th>Time</th><th>Patient</th><th>Department</th><th>Type</th><th>Priority</th><th>Status</th></tr>
+            </thead>
+            <tbody id="scheduleTable">
+                <tr><td colspan="6" class="text-center"><div class="spinner" style="margin:20px auto;"></div></td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('schedDate').value = Utils.today();
+    loadSchedule();
+});
+
+async function loadSchedule() {
+    const dateStr = document.getElementById('schedDate').value || Utils.today();
+    try {
+        const result = await API.get(`/doctor/api/schedule?date=${dateStr}`);
+        if (result.success) {
+            const tbody = document.getElementById('scheduleTable');
+            if (!result.appointments.length) {
+                tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state"><div class="icon">📅</div><h3>No appointments on this date</h3></div></td></tr>';
+                return;
+            }
+            tbody.innerHTML = result.appointments.map(a => `
+                <tr>
+                    <td><strong>${Utils.formatTime(a.start_time)}</strong> - ${Utils.formatTime(a.end_time)}</td>
+                    <td>${a.patient_name}</td>
+                    <td>${a.department}</td>
+                    <td>${a.appointment_type}</td>
+                    <td><span class="${Utils.priorityBadge(a.priority)}">${a.priority}</span></td>
+                    <td><span class="${Utils.statusBadge(a.status)}">${a.status}</span></td>
+                </tr>
+            `).join('');
+        }
+    } catch(e) { Toast.error('Failed to load schedule'); }
+}
+</script>
+{% endblock %}

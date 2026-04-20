@@ -1,0 +1,219 @@
+{% extends "dashboard_base.html" %}
+
+{% block title %}Doctor Dashboard{% endblock %}
+{% block panel_subtitle %}Doctor Panel{% endblock %}
+{% block page_title %}My Dashboard{% endblock %}
+
+{% block sidebar_nav %}
+<div class="nav-section">
+    <div class="nav-section-title">Menu</div>
+    <a href="/doctor/dashboard" class="nav-link active"><span class="icon">📊</span> Dashboard</a>
+    <a href="/doctor/schedule" class="nav-link"><span class="icon">📅</span> My Schedule</a>
+    <a href="/doctor/availability" class="nav-link"><span class="icon">⏰</span> Availability</a>
+    <a href="/doctor/patients" class="nav-link"><span class="icon">👥</span> Patient History</a>
+</div>
+{% endblock %}
+
+{% block content %}
+<!-- Stats -->
+<div class="stats-grid" id="statsGrid">
+    <div class="stat-card">
+        <div class="stat-icon blue">📅</div>
+        <div class="stat-value" id="statToday">-</div>
+        <div class="stat-label">Today's Appointments</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon green">✓</div>
+        <div class="stat-value" id="statWeek">-</div>
+        <div class="stat-label">This Week</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon orange">⏳</div>
+        <div class="stat-value" id="statPending">-</div>
+        <div class="stat-label">Pending</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon red">🚨</div>
+        <div class="stat-value" id="statEmergency">-</div>
+        <div class="stat-label">Emergencies Today</div>
+    </div>
+</div>
+
+<!-- Workload Bar -->
+<div class="card mb-24">
+    <div class="card-body">
+        <div class="d-flex justify-between align-center mb-8">
+            <strong>Today's Workload</strong>
+            <span id="workloadText" class="text-sm text-muted">-</span>
+        </div>
+        <div style="height:12px; background:var(--gray-200); border-radius:6px; overflow:hidden;">
+            <div id="workloadBar" style="height:100%; background:var(--primary); border-radius:6px; transition:width 0.5s ease; width:0%;"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Conflicts Alert -->
+<div id="conflictsArea"></div>
+
+<!-- Today's Schedule -->
+<div class="card">
+    <div class="card-header">
+        <h3>📅 Today's Appointments</h3>
+        <button class="btn btn-primary btn-sm" onclick="openEmergencyForm()">🚨 Emergency Slot</button>
+    </div>
+    <div class="table-container">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Time</th>
+                    <th>Patient</th>
+                    <th>Type</th>
+                    <th>Priority</th>
+                    <th>Symptoms</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="todayTable">
+                <tr><td colspan="7" class="text-center"><div class="spinner" style="margin:20px auto;"></div></td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Emergency Modal -->
+<div class="modal-overlay" id="emergencyModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>🚨 Schedule Emergency Appointment</h3>
+            <button class="modal-close" onclick="Modal.hide('#emergencyModal')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label class="form-label">Patient ID *</label>
+                <input type="number" id="emergPatientId" class="form-input" placeholder="Enter patient ID">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Symptoms *</label>
+                <textarea id="emergSymptoms" class="form-textarea" placeholder="Emergency description..."></textarea>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="Modal.hide('#emergencyModal')">Cancel</button>
+            <button class="btn btn-danger" onclick="submitEmergency()">🚨 Schedule Emergency</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', loadDoctorDashboard);
+
+async function loadDoctorDashboard() {
+    try {
+        const result = await API.get('/doctor/api/dashboard-data');
+        if (result.success) {
+            const s = result.stats;
+            const d = result.doctor;
+            
+            document.getElementById('userName').textContent = d.name;
+            document.getElementById('userAvatar').textContent = d.name.replace('Dr. ', '').split(' ').map(n=>n[0]).join('');
+            
+            document.getElementById('statToday').textContent = s.today_count;
+            document.getElementById('statWeek').textContent = s.week_count;
+            document.getElementById('statPending').textContent = s.pending;
+            document.getElementById('statEmergency').textContent = s.emergencies_today;
+            
+            // Workload bar
+            const wl = s.workload_ratio;
+            document.getElementById('workloadBar').style.width = wl + '%';
+            document.getElementById('workloadBar').style.background = wl > 80 ? 'var(--danger)' : wl > 60 ? 'var(--warning)' : 'var(--success)';
+            document.getElementById('workloadText').textContent = wl + '% utilized';
+            
+            // Render today's table
+            renderTodayTable(result.today_appointments);
+            
+            // Show conflicts
+            if (result.conflicts && result.conflicts.length > 0) {
+                document.getElementById('conflictsArea').innerHTML = result.conflicts.map(c => `
+                    <div class="alert alert-danger mb-8">⚠️ <strong>${c.type.toUpperCase()}:</strong> ${c.message}</div>
+                `).join('');
+            }
+        }
+    } catch (error) {
+        Toast.error('Failed to load dashboard');
+    }
+}
+
+function renderTodayTable(appointments) {
+    const tbody = document.getElementById('todayTable');
+    
+    if (!appointments || appointments.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><div class="icon">📅</div><h3>No appointments today</h3></div></td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = appointments.map(a => `
+        <tr>
+            <td><strong>${Utils.formatTime(a.start_time)}</strong><br><span class="text-xs text-muted">${Utils.formatTime(a.end_time)}</span></td>
+            <td>${a.patient_name}</td>
+            <td>${a.appointment_type}</td>
+            <td><span class="${Utils.priorityBadge(a.priority)}">${a.priority}</span></td>
+            <td class="text-sm">${a.symptoms || '-'}</td>
+            <td><span class="${Utils.statusBadge(a.status)}">${a.status}</span></td>
+            <td>
+                <select onchange="updateStatus(${a.id}, this.value)" class="form-select" style="width:140px; padding:6px;">
+                    <option value="">Update...</option>
+                    <option value="confirmed">Confirm</option>
+                    <option value="in_progress">In Progress</option>
+                    <option value="completed">Completed</option>
+                    <option value="no_show">No Show</option>
+                </select>
+            </td>
+        </tr>
+    `).join('');
+}
+
+async function updateStatus(apptId, status) {
+    if (!status) return;
+    try {
+        const result = await API.post(`/doctor/api/update-status/${apptId}`, { status });
+        if (result.success) {
+            Toast.success(`Appointment marked as ${status}`);
+            loadDoctorDashboard();
+        }
+    } catch (error) {
+        Toast.error(error.message || 'Failed to update');
+    }
+}
+
+function openEmergencyForm() {
+    Modal.show('#emergencyModal');
+}
+
+async function submitEmergency() {
+    const patientId = document.getElementById('emergPatientId').value;
+    const symptoms = document.getElementById('emergSymptoms').value;
+    
+    if (!patientId) { Toast.error('Patient ID is required'); return; }
+    
+    try {
+        const result = await API.post('/doctor/api/emergency-slot', {
+            patient_id: parseInt(patientId),
+            symptoms: symptoms
+        });
+        
+        if (result.success) {
+            Toast.success('Emergency appointment scheduled!');
+            Modal.hide('#emergencyModal');
+            loadDoctorDashboard();
+        } else {
+            Toast.error(result.error);
+        }
+    } catch (error) {
+        Toast.error(error.message);
+    }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,289 @@
+{% extends "base.html" %}
+{% block title %}Register - AI Hospital Scheduler{% endblock %}
+
+{% block body %}
+<div class="auth-page">
+    <div class="auth-container">
+        <div class="auth-logo">
+            <img src="/static/images/site-logo.png" alt="Curonix Logo" class="logo-image">
+            <h1>Create Account</h1>
+            <p>Register as a new {{ role|capitalize }}</p>
+        </div>
+        
+        <input type="hidden" id="user_role" value="{{ role }}">
+        
+        <div id="alert-container"></div>
+        
+        <form id="registerForm" onsubmit="handleRegister(event)">
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">First Name *</label>
+                    <input type="text" id="first_name" class="form-input" 
+                           placeholder="First name" required
+                           {% if role == 'doctor' and verified_first_name %}value="{{ verified_first_name }}"{% endif %}>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Last Name *</label>
+                    <input type="text" id="last_name" class="form-input" 
+                           placeholder="Last name" required
+                           {% if role == 'doctor' and verified_last_name %}value="{{ verified_last_name }}"{% endif %}>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Email Address *</label>
+                <input type="email" id="email" class="form-input" 
+                       placeholder="your.email@example.com" required
+                       {% if role == 'doctor' and verified_email %}value="{{ verified_email }}" readonly{% endif %}>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Phone Number</label>
+                <div style="display: flex; gap: 8px;">
+                    <select id="country_code" class="form-select" style="width: 120px; flex-shrink: 0;">
+                        <option value="+91" selected>🇮🇳 +91</option>
+                        <option value="+1">🇺🇸 +1</option>
+                        <option value="+44">🇬🇧 +44</option>
+                        <option value="+61">🇦🇺 +61</option>
+                        <option value="+81">🇯🇵 +81</option>
+                        <option value="+86">🇨🇳 +86</option>
+                        <option value="+49">🇩🇪 +49</option>
+                        <option value="+33">🇫🇷 +33</option>
+                        <option value="+971">🇦🇪 +971</option>
+                        <option value="+65">🇸🇬 +65</option>
+                        <option value="+60">🇲🇾 +60</option>
+                        <option value="+94">🇱🇰 +94</option>
+                        <option value="+977">🇳🇵 +977</option>
+                        <option value="+880">🇧🇩 +880</option>
+                        <option value="+92">🇵🇰 +92</option>
+                    </select>
+                    <input type="tel" id="phone" class="form-input" 
+                           placeholder="XXXXX XXXXX" style="flex: 1;">
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Date of Birth</label>
+                    <input type="date" id="date_of_birth" class="form-input" data-max-today>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Gender</label>
+                    <select id="gender" class="form-select">
+                        <option value="">Select gender</option>
+                        <option value="male">Male</option>
+                        <option value="female">Female</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+            </div>
+            
+            {% if role == 'doctor' %}
+            <div class="form-group">
+                <label class="form-label">Specialty / Department *</label>
+                <select id="specialty" class="form-select" required>
+                    <option value="">Select your specialty</option>
+                    <option value="General Medicine">General Medicine</option>
+                    <option value="Cardiology">Cardiology</option>
+                    <option value="Orthopedics">Orthopedics</option>
+                    <option value="Pediatrics">Pediatrics</option>
+                    <option value="Dermatology">Dermatology</option>
+                    <option value="Neurology">Neurology</option>
+                    <option value="ENT">ENT (Ear, Nose, Throat)</option>
+                    <option value="Ophthalmology">Ophthalmology</option>
+                </select>
+            </div>
+            {% endif %}
+            <div class="form-group">
+                <label class="form-label">Password * (min 6 characters)</label>
+                <div class="password-input-wrapper">
+                          <input type="password" id="password" class="form-input" 
+                           placeholder="Create a password" minlength="6" required
+                           pattern="^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#])[A-Za-z\d@$!%*?&#]{6,}$"
+                           title="Password must contain at least 6 characters, including uppercase, lowercase, number, and special character">
+                          <button type="button" class="toggle-password" data-toggle-password data-target="password">👁️</button>
+                </div>
+                <div class="password-requirements" id="passwordReqs">
+                    <small>Must contain: 
+                        <span id="reqLength" class="req-invalid">6+ chars</span> |
+                        <span id="reqUpper" class="req-invalid">A-Z</span> |
+                        <span id="reqLower" class="req-invalid">a-z</span> |
+                        <span id="reqNumber" class="req-invalid">0-9</span> |
+                        <span id="reqSpecial" class="req-invalid">@$!%*?&#</span>
+                    </small>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Confirm Password *</label>
+                <div class="password-input-wrapper">
+                          <input type="password" id="confirm_password" class="form-input" 
+                           placeholder="Confirm your password" required>
+                          <button type="button" class="toggle-password" data-toggle-password data-target="confirm_password">👁️</button>
+                </div>
+            </div>
+            
+            <button type="submit" class="btn btn-primary w-full btn-lg" id="registerBtn">
+                Create Account
+            </button>
+        </form>
+        
+        <div class="auth-footer">
+            <a href="{{ url_for('auth.select_role_page') }}">← Choose different role</a>
+            <br><br>
+            Already have an account? <a href="{{ url_for('auth.login_page', role=role) }}">Sign in</a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.password-input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+.password-input-wrapper .form-input {
+    padding-right: 45px;
+}
+.toggle-password {
+    position: absolute;
+    right: 10px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1.2rem;
+    opacity: 0.6;
+}
+.toggle-password:hover {
+    opacity: 1;
+}
+.password-requirements {
+    margin-top: 5px;
+    font-size: 0.85rem;
+}
+.req-valid {
+    color: #22c55e;
+    font-weight: 500;
+}
+.req-invalid {
+    color: #94a3b8;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Check password strength
+function checkPasswordStrength(password) {
+    document.getElementById('reqLength').className = password.length >= 6 ? 'req-valid' : 'req-invalid';
+    document.getElementById('reqUpper').className = /[A-Z]/.test(password) ? 'req-valid' : 'req-invalid';
+    document.getElementById('reqLower').className = /[a-z]/.test(password) ? 'req-valid' : 'req-invalid';
+    document.getElementById('reqNumber').className = /[0-9]/.test(password) ? 'req-valid' : 'req-invalid';
+    document.getElementById('reqSpecial').className = /[@$!%*?&#]/.test(password) ? 'req-valid' : 'req-invalid';
+}
+
+// Set date of birth constraints on page load
+document.addEventListener('DOMContentLoaded', function() {
+    const dobInput = document.getElementById('date_of_birth');
+    if (dobInput) {
+        const today = new Date();
+        const maxDate = today.toISOString().split('T')[0];
+        const minYear = today.getFullYear() - 120;
+        const minDate = minYear + '-01-01';
+        dobInput.setAttribute('max', maxDate);
+        dobInput.setAttribute('min', minDate);
+    }
+    
+    // Add password strength checker
+    const passwordInput = document.getElementById('password');
+    if (passwordInput) {
+        passwordInput.addEventListener('input', function() {
+            checkPasswordStrength(this.value);
+        });
+    }
+
+});
+
+async function handleRegister(event) {
+    event.preventDefault();
+    
+    const password = document.getElementById('password').value;
+    const confirm = document.getElementById('confirm_password').value;
+    
+    // Validate password strength
+    const hasLength = password.length >= 6;
+    const hasUpper = /[A-Z]/.test(password);
+    const hasLower = /[a-z]/.test(password);
+    const hasNumber = /[0-9]/.test(password);
+    const hasSpecial = /[@$!%*?&#]/.test(password);
+    
+    if (!hasLength || !hasUpper || !hasLower || !hasNumber || !hasSpecial) {
+        document.getElementById('alert-container').innerHTML = 
+            '<div class="alert alert-danger">Password must contain at least 6 characters, including uppercase, lowercase, number, and special character (@$!%*?&#)</div>';
+        return;
+    }
+    
+    if (password !== confirm) {
+        document.getElementById('alert-container').innerHTML = 
+            '<div class="alert alert-danger">Passwords do not match</div>';
+        return;
+    }
+    
+    const btn = document.getElementById('registerBtn');
+    btn.disabled = true;
+    btn.textContent = 'Creating account...';
+    
+    const role = document.getElementById('user_role').value;
+    const countryCode = document.getElementById('country_code').value;
+    const phoneNumber = document.getElementById('phone').value;
+    const data = {
+        first_name: document.getElementById('first_name').value,
+        last_name: document.getElementById('last_name').value,
+        email: document.getElementById('email').value,
+        phone: countryCode + ' ' + phoneNumber,
+        date_of_birth: document.getElementById('date_of_birth').value,
+        gender: document.getElementById('gender').value,
+        password: password,
+        role: role
+    };
+    
+    // Add specialty for doctors
+    if (role === 'doctor') {
+        const specialtyEl = document.getElementById('specialty');
+        if (specialtyEl) {
+            data.specialty = specialtyEl.value;
+        }
+    }
+    
+    try {
+        const result = await API.post("{{ url_for('auth.register') }}", data);
+        
+        if (result.success) {
+            const successMsg = result.message || 'Registration successful! Redirecting to login...';
+            const alertContainer = document.getElementById('alert-container');
+            if (typeof Toast !== 'undefined' && Toast.success) {
+                Toast.success(successMsg);
+            } else if (alertContainer) {
+                alertContainer.innerHTML = `
+                    <div class="alert alert-success">${successMsg}</div>
+                `;
+            }
+
+            const loginUrl = new URL("{{ url_for('auth.login_page') }}", window.location.origin);
+            loginUrl.searchParams.set('role', role);
+            setTimeout(() => {
+                window.location.href = loginUrl.toString();
+            }, 1200);
+        }
+    } catch (error) {
+        document.getElementById('alert-container').innerHTML = `
+            <div class="alert alert-danger">⚠️ ${error.message}</div>
+        `;
+        btn.disabled = false;
+        btn.textContent = 'Create Account';
+    }
+    }
+</script>
+    {% endblock %}

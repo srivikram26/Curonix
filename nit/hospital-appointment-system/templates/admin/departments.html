@@ -1,0 +1,157 @@
+{% extends "dashboard_base.html" %}
+{% block title %}Manage Departments{% endblock %}
+{% block panel_subtitle %}Admin Panel{% endblock %}
+{% block page_title %}Department Management{% endblock %}
+
+{% block sidebar_nav %}
+<div class="nav-section">
+    <div class="nav-section-title">Management</div>
+    <a href="/admin/dashboard" class="nav-link"><span class="icon">📊</span> Dashboard</a>
+    <a href="/admin/doctors" class="nav-link"><span class="icon">👨‍⚕️</span> Doctors</a>
+    <a href="/admin/departments" class="nav-link active"><span class="icon">🏥</span> Departments</a>
+    <a href="/admin/appointments" class="nav-link"><span class="icon">📋</span> Appointments</a>
+    <a href="/admin/analytics" class="nav-link"><span class="icon">📈</span> AI Analytics</a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="card mb-24">
+    <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
+        <h3>🏥 All Departments</h3>
+        <button class="btn btn-primary" onclick="openAddDept()">+ Add Department</button>
+    </div>
+    <div class="card-body">
+        <div id="deptGrid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:16px;">
+            <div class="text-center">Loading...</div>
+        </div>
+    </div>
+</div>
+
+<!-- Add/Edit Department Modal -->
+<div class="modal-overlay" id="deptModal">
+    <div class="modal" style="max-width:450px;">
+        <div class="modal-header">
+            <h3 id="deptModalTitle">Add Department</h3>
+            <button class="modal-close" onclick="Modal.close('deptModal')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <form id="deptForm" onsubmit="saveDept(event)">
+                <input type="hidden" id="editDeptId">
+                <div class="form-group">
+                    <label class="form-label">Department Name *</label>
+                    <input type="text" id="deptName" class="form-input" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Description</label>
+                    <textarea id="deptDesc" class="form-input" rows="3"></textarea>
+                </div>
+                <div style="text-align:right; margin-top:16px;">
+                    <button type="button" class="btn btn-outline" onclick="Modal.close('deptModal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', loadDepts);
+
+async function loadDepts() {
+    try {
+        const res = await API.get('/admin/api/departments');
+        const depts = res.success ? res.departments : [];
+        const grid = document.getElementById('deptGrid');
+        
+        if (!depts.length) { grid.innerHTML = '<p>No departments found.</p>'; return; }
+        
+        grid.innerHTML = depts.map(d => `
+            <div class="card" style="padding:20px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:8px;">
+                    <h4 style="margin:0;">${d.name}</h4>
+                    <span class="badge badge-${d.is_active ? 'success' : 'warning'}">${d.is_active ? 'Active' : 'Inactive'}</span>
+                </div>
+                <p style="color:var(--gray-500); font-size:0.875rem; margin-bottom:12px;">${d.description || 'No description'}</p>
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <span class="badge badge-info">${d.doctor_count || 0} Doctors</span>
+                    <div>
+                        <button class="btn btn-sm btn-outline" onclick="editDept(${d.id}, '${(d.name||'').replace(/'/g,"\\'")}', '${(d.description||'').replace(/'/g,"\\'")}')">Edit</button>
+                        ${d.is_active
+                            ? `<button class="btn btn-sm btn-danger" onclick="deleteDept(${d.id})">Delete</button>`
+                            : `<button class="btn btn-sm btn-primary" onclick="restoreDept(${d.id})">Restore</button>`}
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    } catch(e) { console.error(e); }
+}
+
+function openAddDept() {
+    document.getElementById('deptModalTitle').textContent = 'Add Department';
+    document.getElementById('deptForm').reset();
+    document.getElementById('editDeptId').value = '';
+    Modal.open('deptModal');
+}
+
+function editDept(id, name, desc) {
+    document.getElementById('deptModalTitle').textContent = 'Edit Department';
+    document.getElementById('editDeptId').value = id;
+    document.getElementById('deptName').value = name;
+    document.getElementById('deptDesc').value = desc;
+    Modal.open('deptModal');
+}
+
+async function saveDept(e) {
+    e.preventDefault();
+    const payload = {
+        name: document.getElementById('deptName').value,
+        description: document.getElementById('deptDesc').value
+    };
+    const id = document.getElementById('editDeptId').value;
+    
+    try {
+        const result = id
+            ? await API.put('/admin/api/departments/' + id, payload)
+            : await API.post('/admin/api/departments', payload);
+        if (result.success) { Toast.success('Department saved!'); Modal.close('deptModal'); loadDepts(); }
+    } catch(e) { Toast.error(e.message); }
+}
+
+async function deleteDept(id) {
+    if (!confirm('Delete this department? This cannot be undone.')) return;
+    try {
+        const result = await API.delete('/admin/api/departments/' + id);
+        if (result.success) {
+            loadDepts();
+            const undo = async () => {
+                try {
+                    const undoRes = await API.put('/admin/api/departments/' + id, { is_active: true });
+                    if (undoRes.success) {
+                        Toast.success('Department restored');
+                        loadDepts();
+                    } else {
+                        throw new Error(undoRes.error || 'Unable to restore');
+                    }
+                } catch (err) {
+                    Toast.error(err.message || 'Restore failed');
+                    throw err;
+                }
+            };
+            Toast.action('Department deleted', 'Undo', undo, 'info', 5000);
+        }
+    } catch(e) { Toast.error(e.message); }
+}
+
+async function restoreDept(id) {
+    try {
+        const result = await API.put('/admin/api/departments/' + id, { is_active: true });
+        if (result.success) {
+            Toast.success('Department restored');
+            loadDepts();
+        }
+    } catch(e) { Toast.error(e.message); }
+}
+</script>
+{% endblock %}
